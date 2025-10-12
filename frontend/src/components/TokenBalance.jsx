@@ -17,19 +17,20 @@ export default function TokenBalance() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (isConnected && account) {
+    if (isConnected && account && getTokenBalance) {
       fetchBalance();
     }
-  }, [isConnected, account]);
+  }, [isConnected, account, getTokenBalance]);
 
   async function fetchBalance() {
-    if (!account) return;
+    if (!account || !getTokenBalance) return;
     
     setLoading(true);
     try {
       const bal = await getTokenBalance(account);
-      console.log(bal)
-      setBalance(ethers.formatEther(bal));
+      if (bal !== undefined && bal !== null) {
+        setBalance(ethers.formatEther(bal));
+      }
     } catch (error) {
       console.error('Error fetching token balance:', error);
     } finally {

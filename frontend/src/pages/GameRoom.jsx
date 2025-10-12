@@ -42,9 +42,14 @@ export default function GameRoom({ socket }) {
     async function fetchBlockchainRoom() {
       try {
         const details = await getRoomDetails(blockchainRoomId);
-        setBlockchainRoomDetails(details);
+        if (details) {
+          setBlockchainRoomDetails(details);
+        }
       } catch (err) {
-        console.error('Error fetching blockchain room:', err);
+        // Silently ignore "Contract not initialized" errors during initial load
+        if (!err.message?.includes('Contract not initialized')) {
+          console.error('Error fetching blockchain room:', err);
+        }
       }
     }
 
@@ -53,7 +58,7 @@ export default function GameRoom({ socket }) {
     // Poll every 60 seconds to update room state
     const interval = setInterval(fetchBlockchainRoom, 60000);
     return () => clearInterval(interval);
-  }, [blockchainRoomId]);
+  }, [blockchainRoomId, getRoomDetails]);
 
   console.log(blockchainRoomDetails)
 

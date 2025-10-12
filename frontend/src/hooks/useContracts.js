@@ -183,10 +183,13 @@ export function useContracts() {
     }
   }
 
-  async function getTokenBalance(address) {
-    if (!tokenContract) throw new Error('Contract not initialized');
+  const getTokenBalance = useCallback(async (address) => {
+    if (!tokenContract) {
+      console.warn('⏳ Token contract not initialized yet');
+      return 0n;
+    }
     return await tokenContract.balanceOf(address);
-  }
+  }, [tokenContract]);
 
   async function approveTokens(spenderAddress, amount) {
     if (!tokenContract || !signer) throw new Error('Contract not initialized');
@@ -204,7 +207,10 @@ export function useContracts() {
   }
 
   async function calculateTokensForWei(weiAmount) {
-    if (!tokenContract) throw new Error('Contract not initialized');
+    if (!tokenContract) {
+      console.warn('⏳ Token contract not initialized yet');
+      return 0n;
+    }
     return await tokenContract.calculateTokensForWei(weiAmount);
   }
 
@@ -276,7 +282,10 @@ export function useContracts() {
   }
 
   const getRoomDetails = useCallback(async (roomId) => {
-    if (!gameContract) throw new Error('Contract not initialized');
+    if (!gameContract) {
+      console.warn('⏳ Contract not initialized yet, skipping room details fetch');
+      return null;
+    }
     
     try {
       console.log('📡 Fetching room details:', {
