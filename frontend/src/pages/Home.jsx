@@ -2,83 +2,51 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Gamepad2, Users, Trophy, Sparkles } from 'lucide-react';
 import Button from '@/components/Button';
-import Input from '@/components/Input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/Card';
 import WalletConnect from '@/components/WalletConnect';
 import TokenBalance from '@/components/TokenBalance';
 import BuyTokensModal from '@/components/BuyTokensModal';
+import CreateRoomModal from '@/components/CreateRoomModal';
+import JoinRoomModal from '@/components/JoinRoomModal';
 import { useWallet } from '@/hooks/useWallet.jsx';
 
 export default function Home({ socket }) {
   const navigate = useNavigate();
-  const { isConnected } = useWallet();
-  const [playerName, setPlayerName] = useState('');
-  const [roomId, setRoomId] = useState('');
+  const { isConnected, account } = useWallet();
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
   const [showBuyTokens, setShowBuyTokens] = useState(false);
+  const [showCreateRoom, setShowCreateRoom] = useState(false);
+  const [showJoinRoom, setShowJoinRoom] = useState(false);
 
-  const handleCreateRoom = () => {
-    if (!playerName.trim()) {
-      setError('Please enter your name');
-      return;
+  function handleCreateRoomSuccess(socketRoomId, blockchainRoomId) {
+    console.log('Room created:', { socketRoomId, blockchainRoomId });
+    setShowCreateRoom(false);
+    
+    if (blockchainRoomId) {
+      navigate(`/room/${blockchainRoomId}`, { 
+        state: { 
+          playerId: account, 
+          playerName: account.slice(0, 6),
+          blockchainRoomId 
+        } 
+      });
     }
+  }
 
-    if (!socket) {
-      setError('Not connected to server');
-      return;
+  function handleJoinRoomSuccess(socketRoomId, blockchainRoomId) {
+    console.log('Room joined:', { socketRoomId, blockchainRoomId });
+    setShowJoinRoom(false);
+    
+    if (blockchainRoomId) {
+      navigate(`/room/${blockchainRoomId}`, { 
+        state: { 
+          playerId: account, 
+          playerName: account.slice(0, 6),
+          blockchainRoomId 
+        } 
+      });
     }
-
-    setLoading(true);
-    setError('');
-
-    socket.emit('createRoom', { playerName: playerName.trim() });
-
-    socket.once('roomCreated', ({ roomId, playerId }) => {
-      setLoading(false);
-      navigate(`/room/${roomId}`, { state: { playerId, playerName: playerName.trim() } });
-    });
-
-    socket.once('error', ({ message }) => {
-      setLoading(false);
-      setError(message);
-    });
-  };
-
-  const handleJoinRoom = () => {
-    if (!playerName.trim()) {
-      setError('Please enter your name');
-      return;
-    }
-
-    if (!roomId.trim()) {
-      setError('Please enter room ID');
-      return;
-    }
-
-    if (!socket) {
-      setError('Not connected to server');
-      return;
-    }
-
-    setLoading(true);
-    setError('');
-
-    socket.emit('joinRoom', { 
-      roomId: roomId.trim().toUpperCase(), 
-      playerName: playerName.trim() 
-    });
-
-    socket.once('roomJoined', ({ roomId, playerId }) => {
-      setLoading(false);
-      navigate(`/room/${roomId}`, { state: { playerId, playerName: playerName.trim() } });
-    });
-
-    socket.once('error', ({ message }) => {
-      setLoading(false);
-      setError(message);
-    });
-  };
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-red-900 via-red-800 to-orange-900 flex items-center justify-center p-4">
@@ -138,71 +106,65 @@ export default function Home({ socket }) {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* Player Name Input */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Your Name</label>
-              <Input
-                type="text"
-                placeholder="Enter your name"
-                value={playerName}
-                onChange={(e) => setPlayerName(e.target.value)}
-                maxLength={20}
-                disabled={loading}
-              />
-            </div>
-
-            {/* Error Message */}
-            {error && (
-              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-                {error}
+            {/* Wallet Connection Required */}
+            {!isConnected ? (
+              <div className="bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded text-center">
+                <p className="font-semibold">Connect your wallet to play</p>
+                <p className="text-sm mt-1">You need to connect your wallet to create or join a game room</p>
               </div>
+            ) : (
+              <>
+                {/* Error Message */}
+                {error && (
+                  <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+                    {error}
+                  </div>
+                )}
+
+                {/* Create Room */}
+                <div className="space-y-3">
+                  <Button
+                    onClick={() => setShowCreateRoom(true)}
+                    disabled={!isConnected}
+                    className="w-full h-12 text-lg"
+                    size="lg"
+                  >
+                    <Gamepad2 className="w-5 h-5 mr-2" />
+                    Create New Room (On-Chain)
+                  </Button>
+                  <p className="text-xs text-gray-500 text-center">
+                    Creates a room on the blockchain with token buy-in
+                  </p>
+                </div>
+
+                {/* Divider */}
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-gray-300"></div>
+                  </div>
+                  <div className="relative flex justify-center text-sm">
+                    <span className="px-2 bg-white text-gray-500">OR</span>
+                  </div>
+                </div>
+
+                {/* Join Room */}
+                <div className="space-y-3">
+                  <Button
+                    onClick={() => setShowJoinRoom(true)}
+                    disabled={!isConnected}
+                    variant="secondary"
+                    className="w-full h-12 text-lg"
+                    size="lg"
+                  >
+                    <Users className="w-5 h-5 mr-2" />
+                    Join Room (On-Chain)
+                  </Button>
+                  <p className="text-xs text-gray-500 text-center">
+                    Join an existing blockchain room with your tokens
+                  </p>
+                </div>
+              </>
             )}
-
-            {/* Create Room */}
-            <div className="space-y-3">
-              <Button
-                onClick={handleCreateRoom}
-                disabled={loading || !socket}
-                className="w-full h-12 text-lg"
-                size="lg"
-              >
-                <Gamepad2 className="w-5 h-5 mr-2" />
-                Create New Room
-              </Button>
-            </div>
-
-            {/* Divider */}
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">OR</span>
-              </div>
-            </div>
-
-            {/* Join Room */}
-            <div className="space-y-3">
-              <label className="text-sm font-medium">Room ID</label>
-              <Input
-                type="text"
-                placeholder="Enter room ID"
-                value={roomId}
-                onChange={(e) => setRoomId(e.target.value.toUpperCase())}
-                maxLength={6}
-                disabled={loading}
-              />
-              <Button
-                onClick={handleJoinRoom}
-                disabled={loading || !socket}
-                variant="secondary"
-                className="w-full h-12 text-lg"
-                size="lg"
-              >
-                <Users className="w-5 h-5 mr-2" />
-                Join Room
-              </Button>
-            </div>
 
             {/* Connection Status */}
             <div className="text-center text-sm">
@@ -252,6 +214,22 @@ export default function Home({ socket }) {
           setShowBuyTokens(false);
           // Token balance will auto-refresh
         }}
+      />
+
+      {/* Create Room Modal */}
+      <CreateRoomModal
+        isOpen={showCreateRoom}
+        onClose={() => setShowCreateRoom(false)}
+        onSuccess={handleCreateRoomSuccess}
+        socket={socket}
+      />
+
+      {/* Join Room Modal */}
+      <JoinRoomModal
+        isOpen={showJoinRoom}
+        onClose={() => setShowJoinRoom(false)}
+        onSuccess={handleJoinRoomSuccess}
+        socket={socket}
       />
     </div>
   );

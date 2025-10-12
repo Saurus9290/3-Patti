@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ethers } from 'ethers';
 import { useWallet } from './useWallet.jsx';
 import TokenABI from '../contracts/TeenPattiToken.json';
@@ -275,11 +275,32 @@ export function useContracts() {
     }
   }
 
-  async function getRoomDetails(roomId) {
+  const getRoomDetails = useCallback(async (roomId) => {
     if (!gameContract) throw new Error('Contract not initialized');
     
     try {
+      console.log('📡 Fetching room details:', {
+        roomId,
+        contractAddress: await gameContract.getAddress(),
+        network: await gameContract.runner?.provider?.getNetwork()
+      });
+      
+      // Call the contract function directly
       const details = await gameContract.getRoomDetails(roomId);
+      
+      const isEmptyRoom = details.creator === '0x0000000000000000000000000000000000000000';
+      
+      console.log(isEmptyRoom ? '❌ Room NOT FOUND' : '✅ Room FOUND:', {
+        roomId,
+        creator: details.creator,
+        buyIn: details.buyIn?.toString(),
+        pot: details.pot?.toString(),
+        maxPlayers: details.maxPlayers?.toString(),
+        currentPlayers: details.currentPlayers?.toString(),
+        state: details.state?.toString(),
+        winner: details.winner
+      });
+      
       return {
         creator: details.creator,
         buyIn: details.buyIn,
@@ -290,8 +311,38 @@ export function useContracts() {
         winner: details.winner
       };
     } catch (error) {
-      console.error('Error getting room details:', error);
+      console.error('❌ Error getting room details:', error);
       return null;
+    }
+  }, [gameContract]);
+
+  async function startGame(roomId) {
+    if (!gameContract || !signer) throw new Error('Contract not initialized');
+    
+    try {
+      const tx = await gameContract.startGame(roomId);
+      console.log('Start game tx:', tx.hash);
+      const receipt = await tx.wait();
+      console.log('Start game confirmed:', receipt);
+      return { success: true, txHash: tx.hash, receipt };
+    } catch (error) {
+      console.error('Error starting game:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  async function declareWinner(roomId, winner) {
+    if (!gameContract || !signer) throw new Error('Contract not initialized');
+    
+    try {
+      const tx = await gameContract.declareWinner(roomId, winner);
+      console.log('Declare winner tx:', tx.hash);
+      const receipt = await tx.wait();
+      console.log('Declare winner confirmed:', receipt);
+      return { success: true, txHash: tx.hash, receipt };
+    } catch (error) {
+      console.error('Error declaring winner:', error);
+      return { success: false, error: error.message };
     }
   }
 
@@ -299,6 +350,7 @@ export function useContracts() {
     tokenContract,
     gameContract,
     contractAddresses,
+    rpcProvider,
     // Token functions
     buyTokens,
     sellTokens,
@@ -310,5 +362,7 @@ export function useContracts() {
     joinRoom,
     leaveRoom,
     getRoomDetails,
+    startGame,
+    declareWinner,
   };
 }

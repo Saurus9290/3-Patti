@@ -53,6 +53,39 @@ io.on('connection', (socket) => {
     console.log(`Room ${roomId} created by ${playerName}`);
   });
 
+  // Create room with blockchain integration
+  socket.on('createRoomWithBlockchain', ({ blockchainRoomId, buyIn, maxPlayers, creator, txHash }) => {
+    console.log('Creating blockchain room:', blockchainRoomId);
+    
+    // Use blockchain room ID as the game room ID
+    const roomId = blockchainRoomId;
+    const playerId = creator; // Use wallet address as player ID
+    const playerName = creator.slice(0, 6); // Short address as name
+    
+    const game = new Game(roomId);
+    game.blockchainRoomId = blockchainRoomId;
+    game.buyIn = buyIn;
+    game.maxPlayers = maxPlayers;
+    game.txHash = txHash;
+    
+    const player = new Player(playerId, playerName, socket.id);
+    player.walletAddress = creator;
+    
+    game.addPlayer(player);
+    games.set(roomId, game);
+    playerSockets.set(socket.id, { playerId, roomId });
+    
+    socket.join(roomId);
+    
+    socket.emit('roomCreated', {
+      roomId,
+      playerId,
+      gameState: game.getGameState()
+    });
+    
+    console.log(`Blockchain room ${roomId} created by ${creator} (tx: ${txHash})`);
+  });
+
   // Join an existing game room
   socket.on('joinRoom', ({ roomId, playerName }) => {
     const game = games.get(roomId);
@@ -99,8 +132,68 @@ io.on('connection', (socket) => {
     console.log(`${playerName} joined room ${roomId}`);
   });
 
+  // Join room with blockchain integration
+  socket.on('joinRoomWithBlockchain', ({ blockchainRoomId, player, txHash }) => {
+    console.log('Joining blockchain room:', blockchainRoomId);
+    
+    const roomId = blockchainRoomId;
+    const game = games.get(roomId);
+    
+    if (!game) {
+      socket.emit('error', { message: 'Room not found' });
+      return;
+    }
+
+    // Check if player already joined
+    const existingPlayer = game.players.find(p => p.walletAddress === player);
+    if (existingPlayer) {
+      // Player already in game, just reconnect
+      playerSockets.set(socket.id, { playerId: existingPlayer.id, roomId });
+      socket.join(roomId);
+      
+      socket.emit('roomJoined', {
+        roomId,
+        playerId: existingPlayer.id,
+        gameState: game.getGameState()
+      });
+      
+      console.log(`${player} reconnected to room ${roomId}`);
+      return;
+    }
+
+    const playerId = player; // Use wallet address as player ID
+    const playerName = player.slice(0, 6); // Short address as name
+    
+    const newPlayer = new Player(playerId, playerName, socket.id);
+    newPlayer.walletAddress = player;
+    
+    game.addPlayer(newPlayer);
+    playerSockets.set(socket.id, { playerId, roomId });
+    
+    socket.join(roomId);
+    
+    socket.emit('roomJoined', {
+      roomId,
+      playerId,
+      gameState: game.getGameState()
+    });
+
+    // Notify all players in the room
+    io.to(roomId).emit('playerJoined', {
+      player: {
+        id: playerId,
+        name: playerName,
+        chips: newPlayer.chips,
+        walletAddress: player
+      },
+      gameState: game.getGameState()
+    });
+
+    console.log(`${player} joined blockchain room ${roomId} (tx: ${txHash})`);
+  });
+
   // Start the game
-  socket.on('startGame', () => {
+  socket.on('startGame', ({ blockchainRoomId, txHash } = {}) => {
     const playerInfo = playerSockets.get(socket.id);
     if (!playerInfo) return;
 

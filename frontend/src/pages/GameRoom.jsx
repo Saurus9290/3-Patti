@@ -9,25 +9,53 @@ import {
   X, 
   ArrowLeft,
   Trophy,
-  Coins
+  Coins,
+  Loader2
 } from 'lucide-react';
 import Button from '@/components/Button';
 import PlayerSeat from '@/components/PlayerSeat';
 import { formatChips } from '@/lib/utils';
+import { useContracts } from '@/hooks/useContracts';
 
 export default function GameRoom({ socket }) {
   const { roomId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
+  const { startGame: blockchainStartGame, getRoomDetails } = useContracts();
   
   const [playerId, setPlayerId] = useState(location.state?.playerId || '');
   const [playerName, setPlayerName] = useState(location.state?.playerName || '');
+  const [blockchainRoomId] = useState(location.state?.blockchainRoomId || roomId);
+  const [blockchainRoomDetails, setBlockchainRoomDetails] = useState(null);
   const [gameState, setGameState] = useState(null);
   const [myCards, setMyCards] = useState([]);
   const [showCards, setShowCards] = useState(false);
   const [betAmount, setBetAmount] = useState(0);
   const [message, setMessage] = useState('');
   const [showBetInput, setShowBetInput] = useState(false);
+  const [startingGame, setStartingGame] = useState(false);
+
+  // Fetch blockchain room details
+  useEffect(() => {
+    if (!blockchainRoomId || !getRoomDetails) return;
+    
+    async function fetchBlockchainRoom() {
+      try {
+        const details = await getRoomDetails(blockchainRoomId);
+        setBlockchainRoomDetails(details);
+      } catch (err) {
+        console.error('Error fetching blockchain room:', err);
+      }
+    }
+
+    fetchBlockchainRoom();
+    
+    // Poll every 60 seconds to update room state
+    const interval = setInterval(fetchBlockchainRoom, 60000);
+    return () => clearInterval(interval);
+  }, [blockchainRoomId]);
+
+  console.log(blockchainRoomDetails)
 
   useEffect(() => {
     if (!socket || !playerId) {
@@ -36,16 +64,20 @@ export default function GameRoom({ socket }) {
     }
 
     // Listen for game state updates
-    socket.on('playerJoined', ({ gameState: newGameState }) => {
+    socket.on('playerJoined', async ({ gameState: newGameState }) => {
       setGameState(newGameState);
       setMessage('A player joined the room');
       setTimeout(() => setMessage(''), 3000);
+      const details = await getRoomDetails(blockchainRoomId);
+      setBlockchainRoomDetails(details);
     });
 
-    socket.on('gameStarted', ({ gameState: newGameState }) => {
+    socket.on('gameStarted', async ({ gameState: newGameState }) => {
       setGameState(newGameState);
       setMessage('Game started! Place your bets.');
       setTimeout(() => setMessage(''), 3000);
+      const details = await getRoomDetails(blockchainRoomId);
+      setBlockchainRoomDetails(details);
     });
 
     socket.on('yourCards', ({ cards }) => {
@@ -121,8 +153,55 @@ export default function GameRoom({ socket }) {
     setTimeout(() => setMessage(''), 2000);
   };
 
-  const handleStartGame = () => {
-    socket.emit('startGame');
+  const handleStartGame = async () => {
+    if (!blockchainRoomId) {
+      setMessage('No blockchain room ID found');
+      setTimeout(() => setMessage(''), 3000);
+      return;
+    }
+
+    setStartingGame(true);
+    setMessage('Starting game on blockchain...');
+
+    try {
+      // Call blockchain startGame function
+      const result = await blockchainStartGame(blockchainRoomId);
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to start game on blockchain');
+      }
+
+      console.log('Game started on blockchain:', result.txHash);
+      setMessage('Game started successfully! ✅');
+      
+      // Notify backend via Socket.IO (optional)
+      if (socket) {
+        socket.emit('startGame', { 
+          blockchainRoomId,
+          txHash: result.txHash 
+        });
+      }
+
+      setTimeout(() => setMessage(''), 3000);
+    } catch (err) {
+      console.error('Error starting game:', err);
+      
+      let errorMessage = err.message;
+      if (err.message.includes('user rejected')) {
+        errorMessage = 'Transaction rejected by user';
+      } else if (err.message.includes('Not authorized')) {
+        errorMessage = 'Only the room creator can start the game';
+      } else if (err.message.includes('Game already started')) {
+        errorMessage = 'Game has already started';
+      } else if (err.message.includes('Need at least 2 players')) {
+        errorMessage = 'Need at least 2 players to start';
+      }
+      
+      setMessage(`Error: ${errorMessage}`);
+      setTimeout(() => setMessage(''), 5000);
+    } finally {
+      setStartingGame(false);
+    }
   };
 
   const handleSeeCards = () => {
@@ -189,10 +268,20 @@ export default function GameRoom({ socket }) {
     );
   }
 
-  const currentPlayer = gameState.players.find(p => p.id === playerId);
-  const isMyTurn = gameState.currentPlayerIndex !== undefined && 
-                   gameState.players[gameState.currentPlayerIndex]?.id === playerId;
-  const canStartGame = !gameState.gameStarted && gameState.players.length >= 2;
+  const currentPlayer = gameState?.players.find(p => p.id === playerId);
+  const isMyTurn = gameState?.currentPlayerIndex !== undefined && 
+                   gameState?.players[gameState.currentPlayerIndex]?.id === playerId;
+  
+  // Use blockchain data to determine if game can start
+  // Only room creator can start the game
+  const isCreator = blockchainRoomDetails && 
+                    playerId && 
+                    blockchainRoomDetails.creator.toLowerCase() === playerId.toLowerCase();
+  
+  const canStartGame = blockchainRoomDetails && 
+                       isCreator && // Must be the room creator
+                       Number(blockchainRoomDetails.state) == 0 && // 0 = WAITING
+                       Number(blockchainRoomDetails.currentPlayers) >= 2;
 
   // Calculate min and max bet
   const minBet = currentPlayer?.isBlind ? gameState.currentBet : gameState.currentBet * 2;
@@ -230,10 +319,33 @@ export default function GameRoom({ socket }) {
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <div>
-              <h2 className="text-white text-xl font-bold">Room: {roomId}</h2>
-              <p className="text-gray-300 text-sm">
-                {gameState.players.length} / 6 players
-              </p>
+              <div className="flex items-center gap-2">
+                <h2 className="text-white text-xl font-bold">Room: {roomId.slice(0, 10)}...</h2>
+                {isCreator && (
+                  <span className="px-2 py-0.5 bg-yellow-500/20 border border-yellow-500/50 rounded text-yellow-400 text-xs font-semibold">
+                    👑 Creator
+                  </span>
+                )}
+              </div>
+              {blockchainRoomDetails ? (
+                <div className="text-gray-300 text-sm space-y-1">
+                  <p className="flex items-center gap-2">
+                    <Users className="w-4 h-4" />
+                    {Number(blockchainRoomDetails.currentPlayers)} / {Number(blockchainRoomDetails.maxPlayers)} players on-chain
+                  </p>
+                  <p className="flex items-center gap-2">
+                    <Coins className="w-4 h-4 text-yellow-400" />
+                    Buy-in: {blockchainRoomDetails.buyIn ? (Number(blockchainRoomDetails.buyIn) / 1e18).toFixed(0) : '0'} TPT
+                  </p>
+                  <p className={`text-xs ${Number(blockchainRoomDetails.state) === 0 ? 'text-yellow-400' : 'text-green-400'}`}>
+                    {Number(blockchainRoomDetails.state) === 0 ? '⏳ Waiting' : 
+                     Number(blockchainRoomDetails.state) === 1 ? '🎮 Active' : 
+                     Number(blockchainRoomDetails.state) === 2 ? '✅ Finished' : '❌ Cancelled'}
+                  </p>
+                </div>
+              ) : (
+                <p className="text-gray-300 text-sm">Loading blockchain data...</p>
+              )}
             </div>
           </div>
 
@@ -251,11 +363,21 @@ export default function GameRoom({ socket }) {
             {canStartGame && (
               <Button
                 onClick={handleStartGame}
+                disabled={startingGame}
                 size="sm"
                 className="bg-green-600 hover:bg-green-700"
               >
-                <Play className="w-4 h-4 mr-2" />
-                Start Game
+                {startingGame ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Starting...
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-4 h-4 mr-2" />
+                    Start Game
+                  </>
+                )}
               </Button>
             )}
           </div>
