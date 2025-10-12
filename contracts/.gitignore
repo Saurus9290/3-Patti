@@ -1,0 +1,28 @@
+# Hardhat
+cache/
+artifacts/
+typechain-types/
+
+# Dependencies
+node_modules/
+
+# Environment
+.env
+
+# Deployments (keep example, ignore actual)
+deployments/*.json
+!deployments/.gitkeep
+
+# Logs
+*.log
+
+# Coverage
+coverage/
+coverage.json
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
