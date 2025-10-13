@@ -73,8 +73,9 @@ contract TeenPattiGame is Ownable, ReentrancyGuard, Pausable {
         require(_maxPlayers >= 2 && _maxPlayers <= 6, "Invalid max players");
         require(token.balanceOf(msg.sender) >= _buyIn, "Insufficient token balance");
         
-        // Generate unique room ID
-        bytes32 roomId = keccak256(abi.encodePacked(msg.sender, block.timestamp, block.prevrandao));
+        // Generate unique room ID (first 3 bytes of hash = 6 hex chars)
+        bytes32 fullHash = keccak256(abi.encodePacked(msg.sender, block.timestamp, block.prevrandao));
+        bytes32 roomId = bytes32(uint256(fullHash) & 0xFFFFFF00000000000000000000000000000000000000000000000000000000);
         
         Room storage room = rooms[roomId];
         room.roomId = roomId;
@@ -390,5 +391,12 @@ contract TeenPattiGame is Ownable, ReentrancyGuard, Pausable {
     function recoverTokens(address _token, uint256 _amount) external onlyOwner {
         require(_token != address(0), "Invalid token address");
         IERC20(_token).transfer(owner(), _amount);
+    }
+    
+    /**
+     * @dev Get total rake collected
+     */
+    function getTotalRakeCollected() external view returns (uint256) {
+        return totalRakeCollected;
     }
 }

@@ -1,8 +1,8 @@
 const hre = require("hardhat");
 
 async function main() {
-  const tokenAddress = "0x3aeBdED2797b3caB549A5642d0Ce447E7288c5EA";
-  const gameAddress = "0xC2BA8A7d75cc710477255D1644a95A162a6339FC";
+  const tokenAddress = "0x927799E679EEF0d35e237f6C95a3c9baFacCd5Fa";
+  const gameAddress = "0xE55eD308b3E19e8C1Bf25788c5f6c82f64eb62A7";
 
   console.log("Checking contract state...\n");
 

@@ -36,31 +36,29 @@ export default function GameRoom({ socket }) {
   const [startingGame, setStartingGame] = useState(false);
 
   // Fetch blockchain room details
-  useEffect(() => {
+  const fetchBlockchainRoom = async () => {
     if (!blockchainRoomId || !getRoomDetails) return;
     
-    async function fetchBlockchainRoom() {
-      try {
-        const details = await getRoomDetails(blockchainRoomId);
-        if (details) {
-          setBlockchainRoomDetails(details);
-        }
-      } catch (err) {
-        // Silently ignore "Contract not initialized" errors during initial load
-        if (!err.message?.includes('Contract not initialized')) {
-          console.error('Error fetching blockchain room:', err);
-        }
+    try {
+      const details = await getRoomDetails(blockchainRoomId);
+      if (details) {
+        setBlockchainRoomDetails(details);
+      }
+    } catch (err) {
+      // Silently ignore "Contract not initialized" errors during initial load
+      if (!err.message?.includes('Contract not initialized')) {
+        console.error('Error fetching blockchain room:', err);
       }
     }
+  };
 
+  useEffect(() => {
     fetchBlockchainRoom();
     
-    // Poll every 60 seconds to update room state
-    const interval = setInterval(fetchBlockchainRoom, 60000);
+    // Poll every 10 seconds to update room state (reduced from 60s)
+    const interval = setInterval(fetchBlockchainRoom, 10000);
     return () => clearInterval(interval);
-  }, [blockchainRoomId, getRoomDetails]);
-
-  console.log(blockchainRoomDetails)
+  }, [blockchainRoomId]);
 
   useEffect(() => {
     if (!socket || !playerId) {
@@ -73,16 +71,16 @@ export default function GameRoom({ socket }) {
       setGameState(newGameState);
       setMessage('A player joined the room');
       setTimeout(() => setMessage(''), 3000);
-      const details = await getRoomDetails(blockchainRoomId);
-      setBlockchainRoomDetails(details);
+      // Refresh blockchain data immediately
+      fetchBlockchainRoom();
     });
 
     socket.on('gameStarted', async ({ gameState: newGameState }) => {
       setGameState(newGameState);
       setMessage('Game started! Place your bets.');
       setTimeout(() => setMessage(''), 3000);
-      const details = await getRoomDetails(blockchainRoomId);
-      setBlockchainRoomDetails(details);
+      // Refresh blockchain data immediately
+      fetchBlockchainRoom();
     });
 
     socket.on('yourCards', ({ cards }) => {
@@ -179,6 +177,9 @@ export default function GameRoom({ socket }) {
       console.log('Game started on blockchain:', result.txHash);
       setMessage('Game started successfully! ✅');
       
+      // Refresh blockchain data immediately after transaction
+      await fetchBlockchainRoom();
+      
       // Notify backend via Socket.IO (optional)
       if (socket) {
         socket.emit('startGame', { 
@@ -245,7 +246,7 @@ export default function GameRoom({ socket }) {
             <div className="bg-white/10 rounded-lg p-4 mb-4">
               <p className="text-gray-300 text-sm mb-2">Room ID</p>
               <div className="flex items-center justify-center gap-2">
-                <p className="text-white text-3xl font-bold tracking-wider">{roomId}</p>
+                <p className="text-white text-sm font-bold tracking-wider">{roomId}</p>
                 <Button
                   variant="ghost"
                   size="icon"

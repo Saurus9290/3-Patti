@@ -1,22 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useAddress, useContract, useContractRead, useContractWrite, useSigner } from '@thirdweb-dev/react';
 import { ethers } from 'ethers';
-import { useWallet } from './useWallet.jsx';
 import TokenABI from '../contracts/TeenPattiToken.json';
 import GameABI from '../contracts/TeenPattiGame.json';
 import addresses from '../contracts/addresses.json';
 
-// RPC URLs for different networks
-const RPC_URLS = {
-  84532: 'https://sepolia.base.org',
-  8453: 'https://mainnet.base.org',
-};
-
 export function useContracts() {
-  const { provider: walletProvider, signer, chainId } = useWallet();
-  const [tokenContract, setTokenContract] = useState(null);
-  const [gameContract, setGameContract] = useState(null);
+  const address = useAddress();
+  const signer = useSigner();
   const [contractAddresses, setContractAddresses] = useState(null);
-  const [rpcProvider, setRpcProvider] = useState(null);
 
   // Initialize RPC provider (always available, even without wallet)
   useEffect(() => {
@@ -236,21 +228,11 @@ export function useContracts() {
       
       if (event) {
         const parsed = gameContract.interface.parseLog(event);
-        const fullRoomId = parsed.args.roomId;
-        const shortRoomId = getShortRoomId(fullRoomId);
-        
-        console.log('✅ Room created:', {
-          fullRoomId,
-          shortRoomId,
-          displayCode: shortRoomId.slice(2) // Remove 0x for display
-        });
-        
         return { 
           success: true, 
           txHash: tx.hash, 
           receipt,
-          roomId: fullRoomId,
-          shortRoomId: shortRoomId
+          roomId: parsed.args.roomId 
         };
       }
       
@@ -265,19 +247,7 @@ export function useContracts() {
     if (!gameContract || !signer) throw new Error('Contract not initialized');
     
     try {
-      // If user enters short ID (6 chars), expand it to full bytes32
-      let fullRoomId = roomId;
-      
-      // Check if it's a short ID (less than full 66 chars including 0x)
-      if (roomId.length < 66) {
-        fullRoomId = expandRoomId(roomId);
-        console.log('📝 Expanded room ID:', {
-          input: roomId,
-          expanded: fullRoomId
-        });
-      }
-      
-      const tx = await gameContract.joinRoom(fullRoomId);
+      const tx = await gameContract.joinRoom(roomId);
       console.log('Join room tx:', tx.hash);
       const receipt = await tx.wait();
       console.log('Join room confirmed:', receipt);
@@ -303,7 +273,7 @@ export function useContracts() {
     }
   }
 
-  const getRoomDetails = async (roomId) => {
+  const getRoomDetails = useCallback(async (roomId) => {
     if (!gameContract) {
       console.warn('⏳ Contract not initialized yet, skipping room details fetch');
       return null;
@@ -352,7 +322,7 @@ export function useContracts() {
       console.error('❌ Error getting room details:', error);
       return null;
     }
-  };
+  }, [gameContract]);
 
   async function startGame(roomId) {
     if (!gameContract || !signer) throw new Error('Contract not initialized');
@@ -384,26 +354,6 @@ export function useContracts() {
     }
   }
 
-  // Helper function to expand short room ID to full bytes32
-  function expandRoomId(shortRoomId) {
-    // Remove "0x" if present
-    let cleanId = shortRoomId.toLowerCase().replace('0x', '');
-    
-    // Ensure it's 6 characters
-    cleanId = cleanId.padStart(6, '0');
-    
-    // Add zeros to make it 64 characters (32 bytes)
-    const fullId = '0x' + cleanId.padEnd(64, '0');
-    
-    return fullId;
-  }
-
-  // Helper function to get short room ID from full ID
-  function getShortRoomId(fullRoomId) {
-    // Get first 6 hex characters (after 0x)
-    return fullRoomId.slice(0, 8).toUpperCase(); // "0x" + 6 chars
-  }
-
   return {
     tokenContract,
     gameContract,
@@ -422,8 +372,5 @@ export function useContracts() {
     getRoomDetails,
     startGame,
     declareWinner,
-    // Helper functions
-    expandRoomId,
-    getShortRoomId,
   };
 }
