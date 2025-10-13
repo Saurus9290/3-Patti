@@ -307,6 +307,8 @@ export function useContracts() {
     if (!gameContract) {
       console.warn('⏳ Contract not initialized yet, skipping room details fetch');
       return null;
+    }else{
+      initializeContracts();
     }
     
     try {

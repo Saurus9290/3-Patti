@@ -21,7 +21,7 @@ export default function GameRoom({ socket }) {
   const { roomId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const { startGame: blockchainStartGame, getRoomDetails } = useContracts();
+  const { startGame: blockchainStartGame, getRoomDetails, declareWinner } = useContracts();
   
   const [playerId, setPlayerId] = useState(location.state?.playerId || '');
   const [playerName, setPlayerName] = useState(location.state?.playerName || '');
@@ -34,6 +34,8 @@ export default function GameRoom({ socket }) {
   const [message, setMessage] = useState('');
   const [showBetInput, setShowBetInput] = useState(false);
   const [startingGame, setStartingGame] = useState(false);
+  const [gameEnded, setGameEnded] = useState(false);
+  const [winnerInfo, setWinnerInfo] = useState(null);
 
   // Fetch blockchain room details
   const fetchBlockchainRoom = async () => {
@@ -113,14 +115,22 @@ export default function GameRoom({ socket }) {
       setTimeout(() => setMessage(''), 3000);
     });
 
-    socket.on('gameEnded', ({ winner, pot, allCards, reason }) => {
+    socket.on('gameEnded', async ({ winner, pot, allCards, reason }) => {
       if (allCards) {
         // Show all cards at the end
         setShowCards(true);
       }
       
+      setGameEnded(true);
+      
       if (winner) {
+        setWinnerInfo({ name: winner.name, pot, reason });
         setMessage(`${winner.name} wins ${formatChips(pot)} chips! ${reason || ''}`);
+        
+        // Declare winner on blockchain
+        if (blockchainRoomId && winner.id) {
+          await handleDeclareWinner(winner.id);
+        }
       } else {
         setMessage(`Game ended. ${reason || ''}`);
       }
@@ -207,6 +217,46 @@ export default function GameRoom({ socket }) {
       setTimeout(() => setMessage(''), 5000);
     } finally {
       setStartingGame(false);
+    }
+  };
+
+  const handleDeclareWinner = async (winnerAddress) => {
+    if (!blockchainRoomId) {
+      console.error('No blockchain room ID found');
+      return;
+    }
+
+    try {
+      setMessage('Declaring winner on blockchain...');
+      console.log('Declaring winner:', { blockchainRoomId, winnerAddress });
+
+      const result = await declareWinner(blockchainRoomId, winnerAddress);
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to declare winner on blockchain');
+      }
+
+      console.log('Winner declared on blockchain:', result.txHash);
+      setMessage('Winner declared successfully! 🏆');
+      
+      // Refresh blockchain data immediately after transaction
+      await fetchBlockchainRoom();
+      
+      setTimeout(() => setMessage(''), 3000);
+    } catch (err) {
+      console.error('Error declaring winner:', err);
+      
+      let errorMessage = err.message;
+      if (err.message.includes('user rejected')) {
+        errorMessage = 'Transaction rejected by user';
+      } else if (err.message.includes('Only backend')) {
+        errorMessage = 'Only the backend can declare winner';
+      } else if (err.message.includes('Game not active')) {
+        errorMessage = 'Game is not active';
+      }
+      
+      setMessage(`Error declaring winner: ${errorMessage}`);
+      setTimeout(() => setMessage(''), 5000);
     }
   };
 
@@ -611,6 +661,57 @@ export default function GameRoom({ socket }) {
                 ? 'Ready to start! Click "Start Game" to begin.'
                 : 'Need at least 2 players to start the game.'}
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* Game Ended Overlay */}
+      {gameEnded && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-gradient-to-br from-yellow-600 to-orange-600 rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl border-4 border-yellow-400">
+            <div className="text-center">
+              <Trophy className="w-24 h-24 text-white mx-auto mb-4 animate-bounce" />
+              
+              {winnerInfo ? (
+                <>
+                  <h2 className="text-white text-4xl font-bold mb-2">
+                    🎉 Winner! 🎉
+                  </h2>
+                  <p className="text-yellow-100 text-2xl font-semibold mb-2">
+                    {winnerInfo.name}
+                  </p>
+                  <div className="bg-white/20 rounded-lg p-4 mb-4">
+                    <p className="text-white text-sm mb-1">Prize Money</p>
+                    <p className="text-yellow-200 text-3xl font-bold">
+                      {formatChips(winnerInfo.pot)}
+                    </p>
+                  </div>
+                  {winnerInfo.reason && (
+                    <p className="text-yellow-100 text-sm mb-4">
+                      {winnerInfo.reason}
+                    </p>
+                  )}
+                </>
+              ) : (
+                <>
+                  <h2 className="text-white text-3xl font-bold mb-4">
+                    Game Ended
+                  </h2>
+                  <p className="text-yellow-100 mb-4">
+                    The game has concluded.
+                  </p>
+                </>
+              )}
+
+              <Button
+                onClick={() => navigate('/')}
+                size="lg"
+                className="w-full bg-white text-orange-600 hover:bg-gray-100 font-bold text-lg"
+              >
+                <ArrowLeft className="w-5 h-5 mr-2" />
+                Exit to Home
+              </Button>
+            </div>
           </div>
         </div>
       )}
