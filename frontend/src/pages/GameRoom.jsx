@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
+import { useReadContract } from 'wagmi';
 import { 
   Copy, 
   Users, 
@@ -16,17 +17,18 @@ import Button from '@/components/Button';
 import PlayerSeat from '@/components/PlayerSeat';
 import { formatChips } from '@/lib/utils';
 import { useContracts } from '@/hooks/useContracts';
+import GameABI from '@/contracts/TeenPattiGame.json';
+import addresses from '@/contracts/addresses.json';
 
 export default function GameRoom({ socket }) {
   const { roomId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const { startGame: blockchainStartGame, getRoomDetails, declareWinner } = useContracts();
+  const { startGame: blockchainStartGame, declareWinner } = useContracts();
   
   const [playerId, setPlayerId] = useState(location.state?.playerId || '');
   const [playerName, setPlayerName] = useState(location.state?.playerName || '');
   const [blockchainRoomId] = useState(location.state?.blockchainRoomId || roomId);
-  const [blockchainRoomDetails, setBlockchainRoomDetails] = useState(null);
   const [gameState, setGameState] = useState(null);
   const [myCards, setMyCards] = useState([]);
   const [showCards, setShowCards] = useState(false);
@@ -37,30 +39,32 @@ export default function GameRoom({ socket }) {
   const [gameEnded, setGameEnded] = useState(false);
   const [winnerInfo, setWinnerInfo] = useState(null);
 
-  // Fetch blockchain room details
-  const fetchBlockchainRoom = async () => {
-    if (!blockchainRoomId || !getRoomDetails) return;
-    
-    try {
-      const details = await getRoomDetails(blockchainRoomId);
-      if (details) {
-        setBlockchainRoomDetails(details);
-      }
-    } catch (err) {
-      // Silently ignore "Contract not initialized" errors during initial load
-      if (!err.message?.includes('Contract not initialized')) {
-        console.error('Error fetching blockchain room:', err);
-      }
-    }
-  };
+  // Use wagmi's useReadContract to fetch room details reactively
+  const { data: blockchainRoomDetails, refetch: refetchRoomDetails } = useReadContract({
+    address: addresses.baseSepolia?.TeenPattiGame,
+    abi: GameABI.abi,
+    functionName: 'getRoomDetails',
+    args: blockchainRoomId ? [blockchainRoomId] : undefined,
+    query: {
+      enabled: !!blockchainRoomId,
+      refetchInterval: 10000, // Auto-refetch every 10 seconds
+    },
+  });
 
+  // Log room details when they update
   useEffect(() => {
-    fetchBlockchainRoom();
-    
-    // Poll every 10 seconds to update room state (reduced from 60s)
-    const interval = setInterval(fetchBlockchainRoom, 10000);
-    return () => clearInterval(interval);
-  }, [blockchainRoomId]);
+    if (blockchainRoomDetails) {
+      console.log('✅ Room details updated:', {
+        creator: blockchainRoomDetails[0],
+        buyIn: blockchainRoomDetails[1]?.toString(),
+        pot: blockchainRoomDetails[2]?.toString(),
+        maxPlayers: blockchainRoomDetails[3]?.toString(),
+        currentPlayers: blockchainRoomDetails[4]?.toString(),
+        state: blockchainRoomDetails[5]?.toString(),
+        winner: blockchainRoomDetails[6],
+      });
+    }
+  }, [blockchainRoomDetails]);
 
   useEffect(() => {
     if (!socket || !playerId) {
@@ -74,7 +78,7 @@ export default function GameRoom({ socket }) {
       setMessage('A player joined the room');
       setTimeout(() => setMessage(''), 3000);
       // Refresh blockchain data immediately
-      fetchBlockchainRoom();
+      if (refetchRoomDetails) refetchRoomDetails();
     });
 
     socket.on('gameStarted', async ({ gameState: newGameState }) => {
@@ -82,7 +86,7 @@ export default function GameRoom({ socket }) {
       setMessage('Game started! Place your bets.');
       setTimeout(() => setMessage(''), 3000);
       // Refresh blockchain data immediately
-      fetchBlockchainRoom();
+      if (refetchRoomDetails) refetchRoomDetails();
     });
 
     socket.on('yourCards', ({ cards }) => {
@@ -188,7 +192,7 @@ export default function GameRoom({ socket }) {
       setMessage('Game started successfully! ✅');
       
       // Refresh blockchain data immediately after transaction
-      await fetchBlockchainRoom();
+      await refetchRoomDetails();
       
       // Notify backend via Socket.IO (optional)
       if (socket) {
@@ -240,7 +244,7 @@ export default function GameRoom({ socket }) {
       setMessage('Winner declared successfully! 🏆');
       
       // Refresh blockchain data immediately after transaction
-      await fetchBlockchainRoom();
+      await refetchRoomDetails();
       
       setTimeout(() => setMessage(''), 3000);
     } catch (err) {
@@ -329,15 +333,24 @@ export default function GameRoom({ socket }) {
                    gameState?.players[gameState.currentPlayerIndex]?.id === playerId;
   
   // Use blockchain data to determine if game can start
+  // Parse blockchain room details (array from contract)
+  const roomCreator = blockchainRoomDetails?.[0];
+  const roomBuyIn = blockchainRoomDetails?.[1];
+  const roomPot = blockchainRoomDetails?.[2];
+  const roomMaxPlayers = blockchainRoomDetails?.[3];
+  const roomCurrentPlayers = blockchainRoomDetails?.[4];
+  const roomState = blockchainRoomDetails?.[5];
+  const roomWinner = blockchainRoomDetails?.[6];
+
   // Only room creator can start the game
-  const isCreator = blockchainRoomDetails && 
+  const isCreator = roomCreator && 
                     playerId && 
-                    blockchainRoomDetails.creator.toLowerCase() === playerId.toLowerCase();
+                    roomCreator.toLowerCase() === playerId.toLowerCase();
   
   const canStartGame = blockchainRoomDetails && 
                        isCreator && // Must be the room creator
-                       Number(blockchainRoomDetails.state) == 0 && // 0 = WAITING
-                       Number(blockchainRoomDetails.currentPlayers) >= 2;
+                       Number(roomState) === 0 && // 0 = WAITING
+                       Number(roomCurrentPlayers) >= 2;
 
   // Calculate min and max bet
   const minBet = currentPlayer?.isBlind ? gameState.currentBet : gameState.currentBet * 2;
@@ -387,16 +400,16 @@ export default function GameRoom({ socket }) {
                 <div className="text-gray-300 text-sm space-y-1">
                   <p className="flex items-center gap-2">
                     <Users className="w-4 h-4" />
-                    {Number(blockchainRoomDetails.currentPlayers)} / {Number(blockchainRoomDetails.maxPlayers)} players on-chain
+                    {Number(roomCurrentPlayers)} / {Number(roomMaxPlayers)} players on-chain
                   </p>
                   <p className="flex items-center gap-2">
                     <Coins className="w-4 h-4 text-yellow-400" />
-                    Buy-in: {blockchainRoomDetails.buyIn ? (Number(blockchainRoomDetails.buyIn) / 1e18).toFixed(0) : '0'} TPT
+                    Buy-in: {roomBuyIn ? (Number(roomBuyIn) / 1e18).toFixed(0) : '0'} TPT
                   </p>
-                  <p className={`text-xs ${Number(blockchainRoomDetails.state) === 0 ? 'text-yellow-400' : 'text-green-400'}`}>
-                    {Number(blockchainRoomDetails.state) === 0 ? '⏳ Waiting' : 
-                     Number(blockchainRoomDetails.state) === 1 ? '🎮 Active' : 
-                     Number(blockchainRoomDetails.state) === 2 ? '✅ Finished' : '❌ Cancelled'}
+                  <p className={`text-xs ${Number(roomState) === 0 ? 'text-yellow-400' : 'text-green-400'}`}>
+                    {Number(roomState) === 0 ? '⏳ Waiting' : 
+                     Number(roomState) === 1 ? '🎮 Active' : 
+                     Number(roomState) === 2 ? '✅ Finished' : '❌ Cancelled'}
                   </p>
                 </div>
               ) : (

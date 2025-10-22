@@ -9,8 +9,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.90.5",
     "@thirdweb-dev/react": "^4.9.4",
     "@thirdweb-dev/sdk": "^4.0.99",
+    "@wagmi/connectors": "^6.1.0",
     "clsx": "^2.1.0",
     "ethers": "^6.10.0",
     "lucide-react": "^0.344.0",
@@ -19,7 +21,9 @@
     "react-router-dom": "^6.22.0",
     "socket.io-client": "^4.6.1",
     "tailwind-merge": "^2.2.1",
-    "thirdweb": "^5.108.13"
+    "thirdweb": "^5.108.13",
+    "viem": "~2.38.3",
+    "wagmi": "^2.18.2"
   },
   "devDependencies": {
     "@types/react": "^18.2.56",
