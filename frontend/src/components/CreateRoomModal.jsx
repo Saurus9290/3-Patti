@@ -8,7 +8,7 @@ import { useWallet } from '@/hooks/useWallet';
 
 export default function CreateRoomModal({ isOpen, onClose, onSuccess, socket }) {
   const { account } = useWallet();
-  const { createRoom, approveTokens, gameContract, contractAddresses } = useContracts();
+  const { createRoom, approveTokens, gameContract, tokenContract, contractAddresses } = useContracts();
   
   const [buyIn, setBuyIn] = useState('1000');
   const [maxPlayers, setMaxPlayers] = useState('4');
@@ -21,6 +21,11 @@ export default function CreateRoomModal({ isOpen, onClose, onSuccess, socket }) 
   async function handleCreate() {
     if (!account) {
       setError('Please connect your wallet');
+      return;
+    }
+
+    if (!gameContract || !tokenContract || !contractAddresses) {
+      setError('Contracts not initialized. Please wait a moment and try again.');
       return;
     }
 
@@ -227,14 +232,16 @@ export default function CreateRoomModal({ isOpen, onClose, onSuccess, socket }) 
             </Button>
             <Button
               onClick={handleCreate}
-              disabled={loading}
-              className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+              disabled={loading || !gameContract || !tokenContract}
+              className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   Processing...
                 </>
+              ) : !gameContract || !tokenContract ? (
+                'Initializing...'
               ) : (
                 'Create Room'
               )}
