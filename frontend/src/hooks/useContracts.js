@@ -256,8 +256,12 @@ export function useContracts() {
         throw new Error(`Insufficient token balance. You have ${ethers.formatEther(balance)} TPT but need ${ethers.formatEther(buyIn)} TPT`);
       }
       
-      // Check allowance
+      // Check allowance - wait a bit for blockchain state to update
       const gameAddress = await gameContract.getAddress();
+      
+      // Wait 2 seconds for approval to be confirmed and state to update
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
       const allowance = await tokenContract.allowance(userAddress, gameAddress);
       console.log('✅ Current allowance:', ethers.formatEther(allowance), 'TPT');
       
@@ -352,8 +356,12 @@ export function useContracts() {
         throw new Error(`Insufficient token balance. You have ${ethers.formatEther(balance)} TPT but need ${ethers.formatEther(buyIn)} TPT`);
       }
       
-      // Check allowance
+      // Check allowance - wait a bit for blockchain state to update
       const gameAddress = await gameContract.getAddress();
+      
+      // Wait 2 seconds for approval to be confirmed and state to update
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
       const allowance = await tokenContract.allowance(userAddress, gameAddress);
       console.log('✅ Current allowance:', ethers.formatEther(allowance), 'TPT');
       

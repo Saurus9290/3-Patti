@@ -14,6 +14,7 @@ export default function CreateRoomModal({ isOpen, onClose, onSuccess, socket }) 
   const [maxPlayers, setMaxPlayers] = useState('4');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
   const [step, setStep] = useState('input'); // input, approving, creating
 
   if (!isOpen) return null;
@@ -63,6 +64,7 @@ export default function CreateRoomModal({ isOpen, onClose, onSuccess, socket }) 
 
       // Step 2: Create room on blockchain
       setStep('creating');
+      setMessage('Tokens approved! Creating room...');
       console.log('Creating room on blockchain...');
       
       const createResult = await createRoom(buyInAmount, players);
@@ -199,6 +201,13 @@ export default function CreateRoomModal({ isOpen, onClose, onSuccess, socket }) 
               <p className="text-xs text-blue-300 mt-2">
                 Please confirm the transaction in your wallet
               </p>
+            </div>
+          )}
+
+          {/* Success Message */}
+          {message && !error && (
+            <div className="bg-green-600/20 border border-green-600/50 rounded-lg p-3 text-green-200 text-sm">
+              {message}
             </div>
           )}
 
