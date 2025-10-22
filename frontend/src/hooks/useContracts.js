@@ -26,12 +26,37 @@ export function useContracts() {
   // Initialize contracts when wallet connects or RPC provider is ready
   useEffect(() => {
     if ((walletProvider || rpcProvider) && chainId) {
+      console.log(' Initializing contracts for chain:', chainId);
       initializeContracts();
     } else if (rpcProvider && !chainId) {
       // If no wallet connected, use default network (Base Sepolia)
+      console.log(' Initializing contracts with RPC');
       initializeContractsWithRpc(84532);
     }
-  }, [walletProvider, signer, chainId, rpcProvider]);
+  }, [chainId, rpcProvider]);
+  
+  // Update contract signers when signer changes (without full reinitialization)
+  useEffect(() => {
+    if (signer && contractAddresses && tokenContract && gameContract) {
+      // Only update if signer actually changed
+      const currentSigner = tokenContract.runner;
+      if (currentSigner !== signer) {
+        console.log('🔄 Updating contract signers');
+        const token = new ethers.Contract(
+          contractAddresses.TeenPattiToken,
+          TokenABI.abi,
+          signer
+        );
+        const game = new ethers.Contract(
+          contractAddresses.TeenPattiGame,
+          GameABI.abi,
+          signer
+        );
+        setTokenContract(token);
+        setGameContract(game);
+      }
+    }
+  }, [signer, contractAddresses]);
 
   function initializeRpcProvider() {
     try {
@@ -219,6 +244,29 @@ export function useContracts() {
     if (!gameContract || !signer) throw new Error('Contract not initialized');
     
     try {
+      // Get user's address
+      const userAddress = await signer.getAddress();
+      
+      // Check token balance
+      const balance = await tokenContract.balanceOf(userAddress);
+      console.log('💰 Token balance:', ethers.formatEther(balance), 'TPT');
+      console.log('💵 Buy-in required:', ethers.formatEther(buyIn), 'TPT');
+      
+      if (balance < buyIn) {
+        throw new Error(`Insufficient token balance. You have ${ethers.formatEther(balance)} TPT but need ${ethers.formatEther(buyIn)} TPT`);
+      }
+      
+      // Check allowance
+      const gameAddress = await gameContract.getAddress();
+      const allowance = await tokenContract.allowance(userAddress, gameAddress);
+      console.log('✅ Current allowance:', ethers.formatEther(allowance), 'TPT');
+      
+      if (allowance < buyIn) {
+        throw new Error(`Insufficient token allowance. Approved: ${ethers.formatEther(allowance)} TPT, Required: ${ethers.formatEther(buyIn)} TPT. Please approve tokens first.`);
+      }
+      
+      console.log('🎮 Creating room with buy-in:', ethers.formatEther(buyIn), 'TPT, max players:', maxPlayers);
+      
       const tx = await gameContract.createRoom(buyIn, maxPlayers);
       console.log('Create room tx:', tx.hash);
       const receipt = await tx.wait();
@@ -256,8 +304,19 @@ export function useContracts() {
       
       return { success: true, txHash: tx.hash, receipt };
     } catch (error) {
-      console.error('Error creating room:', error);
-      return { success: false, error: error.message };
+      console.error('❌ Error creating room:', error);
+      
+      // Better error messages
+      let errorMessage = error.message;
+      if (error.message.includes('insufficient allowance')) {
+        errorMessage = 'Token approval failed or expired. Please approve tokens again.';
+      } else if (error.message.includes('ERC20: transfer amount exceeds balance')) {
+        errorMessage = 'Insufficient token balance.';
+      } else if (error.code === 'CALL_EXCEPTION') {
+        errorMessage = 'Transaction would fail. Check token balance and approval.';
+      }
+      
+      return { success: false, error: errorMessage };
     }
   }
 
@@ -277,14 +336,52 @@ export function useContracts() {
         });
       }
       
+      // Get room details first
+      const roomDetails = await gameContract.getRoomDetails(fullRoomId);
+      const buyIn = roomDetails.buyIn;
+      
+      // Get user's address
+      const userAddress = await signer.getAddress();
+      
+      // Check token balance
+      const balance = await tokenContract.balanceOf(userAddress);
+      console.log('💰 Token balance:', ethers.formatEther(balance), 'TPT');
+      console.log('💵 Buy-in required:', ethers.formatEther(buyIn), 'TPT');
+      
+      if (balance < buyIn) {
+        throw new Error(`Insufficient token balance. You have ${ethers.formatEther(balance)} TPT but need ${ethers.formatEther(buyIn)} TPT`);
+      }
+      
+      // Check allowance
+      const gameAddress = await gameContract.getAddress();
+      const allowance = await tokenContract.allowance(userAddress, gameAddress);
+      console.log('✅ Current allowance:', ethers.formatEther(allowance), 'TPT');
+      
+      if (allowance < buyIn) {
+        throw new Error(`Insufficient token allowance. Approved: ${ethers.formatEther(allowance)} TPT, Required: ${ethers.formatEther(buyIn)} TPT. Please approve tokens first.`);
+      }
+      
+      console.log('🎮 Joining room:', fullRoomId);
+      
       const tx = await gameContract.joinRoom(fullRoomId);
       console.log('Join room tx:', tx.hash);
       const receipt = await tx.wait();
       console.log('Join room confirmed:', receipt);
       return { success: true, txHash: tx.hash, receipt };
     } catch (error) {
-      console.error('Error joining room:', error);
-      return { success: false, error: error.message };
+      console.error('❌ Error joining room:', error);
+      
+      // Better error messages
+      let errorMessage = error.message;
+      if (error.message.includes('insufficient allowance')) {
+        errorMessage = 'Token approval failed or expired. Please approve tokens again.';
+      } else if (error.message.includes('ERC20: transfer amount exceeds balance')) {
+        errorMessage = 'Insufficient token balance.';
+      } else if (error.code === 'CALL_EXCEPTION') {
+        errorMessage = 'Transaction would fail. Check token balance and approval.';
+      }
+      
+      return { success: false, error: errorMessage };
     }
   }
 
@@ -305,10 +402,7 @@ export function useContracts() {
 
   const getRoomDetails = async (roomId) => {
     if (!gameContract) {
-      console.warn('⏳ Contract not initialized yet, skipping room details fetch');
       return null;
-    }else{
-      initializeContracts();
     }
     
     try {

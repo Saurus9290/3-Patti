@@ -1,5 +1,5 @@
 import { useState, useEffect, createContext, useContext } from 'react';
-import { useAccount, useBalance, useWalletClient, usePublicClient, useSwitchChain } from 'wagmi';
+import { useAccount, useBalance, useWalletClient, useSwitchChain } from 'wagmi';
 import { ethers } from 'ethers';
 
 const WalletContext = createContext();
@@ -13,9 +13,8 @@ export function useWallet() {
 }
 
 export function WalletProvider({ children }) {
-  const { address, isConnected, chain } = useAccount();
+  const { address, isConnected, chain, connector } = useAccount();
   const { data: walletClient } = useWalletClient();
-  const publicClient = usePublicClient();
   const { switchChain } = useSwitchChain();
   const { data: balanceData } = useBalance({
     address: address,
@@ -24,20 +23,41 @@ export function WalletProvider({ children }) {
   const [provider, setProvider] = useState(null);
   const [signer, setSigner] = useState(null);
 
-  // Create ethers provider and signer from wagmi clients
+  // Create ethers provider and signer from wagmi wallet client
   useEffect(() => {
-    if (walletClient && publicClient) {
-      // Create ethers provider from viem public client
-      const ethersProvider = new ethers.BrowserProvider(window.ethereum);
-      setProvider(ethersProvider);
+    async function setupProviderAndSigner() {
+      if (walletClient && address && connector) {
+        try {
+          // Get the provider from the connector
+          const connectorProvider = await connector.getProvider();
+          
+          if (!connectorProvider) {
+            console.error('No provider available from connector');
+            return;
+          }
 
-      // Get signer
-      ethersProvider.getSigner().then(setSigner).catch(console.error);
-    } else {
-      setProvider(null);
-      setSigner(null);
+          // Create ethers provider from the connector's provider
+          const ethersProvider = new ethers.BrowserProvider(connectorProvider);
+          setProvider(ethersProvider);
+
+          // Get signer with the specific address
+          const ethersSigner = await ethersProvider.getSigner(address);
+          setSigner(ethersSigner);
+          
+          console.log('✅ Provider and signer set up for address:', address, 'via connector:', connector.name);
+        } catch (error) {
+          console.error('Error setting up provider/signer:', error);
+          setProvider(null);
+          setSigner(null);
+        }
+      } else {
+        setProvider(null);
+        setSigner(null);
+      }
     }
-  }, [walletClient, publicClient, address]);
+
+    setupProviderAndSigner();
+  }, [walletClient, address, chain, connector]);
 
   const switchNetwork = async (targetChainId) => {
     try {
@@ -58,10 +78,10 @@ export function WalletProvider({ children }) {
     isConnecting: false,
     error: null,
     isConnected,
-    connectWallet: () => {}, // Handled by RainbowKit
-    disconnectWallet: () => {}, // Handled by RainbowKit
+    connectWallet: () => {}, // Handled by wagmi useConnect
+    disconnectWallet: () => {}, // Handled by wagmi useDisconnect
     switchNetwork,
-    updateBalance: () => {}, // Handled by wagmi
+    updateBalance: () => {}, // Handled by wagmi useBalance
   };
 
   return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>;

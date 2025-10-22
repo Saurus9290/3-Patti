@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Coins, RefreshCw } from 'lucide-react';
-import { useWallet } from '@/hooks/useWallet.jsx';
-import { useContracts } from '@/hooks/useContracts';
+import { useAccount, useReadContract } from 'wagmi';
 import { formatChips } from '@/lib/utils';
 import { ethers } from 'ethers';
+import TokenABI from '@/contracts/TeenPattiToken.json';
+import addresses from '@/contracts/addresses.json';
 
 const NETWORK_NAMES = {
   84532: 'Base Sepolia',
@@ -11,36 +12,25 @@ const NETWORK_NAMES = {
 };
 
 export default function TokenBalance() {
-  const { account, isConnected, chainId } = useWallet();
-  const { getTokenBalance } = useContracts();
-  const [balance, setBalance] = useState('0');
-  const [loading, setLoading] = useState(false);
+  const { address: account, isConnected, chainId } = useAccount();
 
-  useEffect(() => {
-    if (isConnected && account && getTokenBalance) {
-      fetchBalance();
-    }
-  }, [isConnected, account, getTokenBalance]);
-
-  async function fetchBalance() {
-    if (!account || !getTokenBalance) return;
-    
-    setLoading(true);
-    try {
-      const bal = await getTokenBalance(account);
-      if (bal !== undefined && bal !== null) {
-        setBalance(ethers.formatEther(bal));
-      }
-    } catch (error) {
-      console.error('Error fetching token balance:', error);
-    } finally {
-      setLoading(false);
-    }
-  }
+  // Use wagmi's useReadContract for token balance
+  const { data: balance, refetch, isLoading } = useReadContract({
+    address: addresses.baseSepolia?.TeenPattiToken,
+    abi: TokenABI.abi,
+    functionName: 'balanceOf',
+    args: account ? [account] : undefined,
+    query: {
+      enabled: !!account && isConnected,
+      refetchInterval: 30000, // Refetch every 30 seconds
+    },
+  });
 
   if (!isConnected) {
     return null;
   }
+
+  const formattedBalance = balance ? ethers.formatEther(balance) : '0';
 
   return (
     <div className="bg-gradient-to-r from-yellow-600/20 to-orange-600/20 backdrop-blur-sm rounded-lg px-4 py-3 border border-yellow-600/30">
@@ -57,16 +47,16 @@ export default function TokenBalance() {
               )}
             </div>
             <div className="text-lg font-bold text-yellow-400">
-              {formatChips(Math.floor(parseFloat(balance)))}
+              {formatChips(Math.floor(parseFloat(formattedBalance)))}
             </div>
           </div>
         </div>
         <button
-          onClick={fetchBalance}
-          disabled={loading}
+          onClick={() => refetch()}
+          disabled={isLoading}
           className="p-2 hover:bg-white/10 rounded-lg transition-colors"
         >
-          <RefreshCw className={`w-4 h-4 text-gray-300 ${loading ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`w-4 h-4 text-gray-300 ${isLoading ? 'animate-spin' : ''}`} />
         </button>
       </div>
     </div>
