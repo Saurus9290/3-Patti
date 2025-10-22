@@ -480,6 +480,21 @@ export function useContracts() {
     }
   }
 
+  async function closeRoom(roomId) {
+    if (!gameContract || !signer) throw new Error('Contract not initialized');
+    
+    try {
+      const tx = await gameContract.closeRoom(roomId);
+      console.log('Close room tx:', tx.hash);
+      const receipt = await tx.wait();
+      console.log('Close room confirmed:', receipt);
+      return { success: true, txHash: tx.hash, receipt };
+    } catch (error) {
+      console.error('Error closing room:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
   // Helper function to expand short room ID to full bytes32
   function expandRoomId(shortRoomId) {
     // Remove "0x" if present
@@ -518,6 +533,7 @@ export function useContracts() {
     getRoomDetails,
     startGame,
     declareWinner,
+    closeRoom,
     // Helper functions
     expandRoomId,
     getShortRoomId,

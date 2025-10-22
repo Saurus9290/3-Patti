@@ -24,7 +24,7 @@ export default function GameRoom({ socket }) {
   const { roomId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const { startGame: blockchainStartGame, declareWinner } = useContracts();
+  const { startGame: blockchainStartGame, declareWinner, closeRoom } = useContracts();
   
   const [playerId, setPlayerId] = useState(location.state?.playerId || '');
   const [playerName, setPlayerName] = useState(location.state?.playerName || '');
@@ -131,9 +131,10 @@ export default function GameRoom({ socket }) {
         setWinnerInfo({ name: winner.name, pot, reason });
         setMessage(`${winner.name} wins ${formatChips(pot)} chips! ${reason || ''}`);
         
-        // Declare winner on blockchain
+        // Declare winner on blockchain and close room
         if (blockchainRoomId && winner.id) {
           await handleDeclareWinner(winner.id);
+          await handleCloseRoom();
         }
       } else {
         setMessage(`Game ended. ${reason || ''}`);
@@ -260,6 +261,44 @@ export default function GameRoom({ socket }) {
       }
       
       setMessage(`Error declaring winner: ${errorMessage}`);
+      setTimeout(() => setMessage(''), 5000);
+    }
+  };
+
+  const handleCloseRoom = async () => {
+    if (!blockchainRoomId) {
+      console.error('No blockchain room ID found');
+      return;
+    }
+
+    try {
+      setMessage('Closing room on blockchain...');
+      console.log('Closing room:', blockchainRoomId);
+
+      const result = await closeRoom(blockchainRoomId);
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to close room on blockchain');
+      }
+
+      console.log('Room closed on blockchain:', result.txHash);
+      setMessage('Room closed successfully! ✅');
+      
+      // Refresh blockchain data immediately after transaction
+      await refetchRoomDetails();
+      
+      setTimeout(() => setMessage(''), 3000);
+    } catch (err) {
+      console.error('Error closing room:', err);
+      
+      let errorMessage = err.message;
+      if (err.message.includes('user rejected')) {
+        errorMessage = 'Transaction rejected by user';
+      } else if (err.message.includes('Only backend')) {
+        errorMessage = 'Only the backend can close room';
+      }
+      
+      setMessage(`Error closing room: ${errorMessage}`);
       setTimeout(() => setMessage(''), 5000);
     }
   };
@@ -704,6 +743,11 @@ export default function GameRoom({ socket }) {
                       {winnerInfo.reason}
                     </p>
                   )}
+                  <div className="bg-red-600/80 rounded-lg p-3 mb-4">
+                    <p className="text-white text-xl font-bold">
+                      🎮 GAME OVER 🎮
+                    </p>
+                  </div>
                 </>
               ) : (
                 <>
@@ -713,6 +757,11 @@ export default function GameRoom({ socket }) {
                   <p className="text-yellow-100 mb-4">
                     The game has concluded.
                   </p>
+                  <div className="bg-red-600/80 rounded-lg p-3 mb-4">
+                    <p className="text-white text-xl font-bold">
+                      🎮 GAME OVER 🎮
+                    </p>
+                  </div>
                 </>
               )}
 
@@ -722,7 +771,7 @@ export default function GameRoom({ socket }) {
                 className="w-full bg-white text-orange-600 hover:bg-gray-100 font-bold text-lg"
               >
                 <ArrowLeft className="w-5 h-5 mr-2" />
-                Exit to Home
+                Return to Home
               </Button>
             </div>
           </div>
