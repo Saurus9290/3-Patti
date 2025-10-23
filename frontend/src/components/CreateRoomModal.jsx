@@ -3,8 +3,10 @@ import { ethers } from 'ethers';
 import { X, Loader2, Users, Coins } from 'lucide-react';
 import Button from './Button';
 import Input from './Input';
+import RoomIdDisplay from './RoomIdDisplay';
 import { useContracts } from '@/hooks/useContracts';
 import { useWallet } from '@/hooks/useWallet';
+import { encodeRoomId } from '@/utils/roomIdUtils';
 
 export default function CreateRoomModal({ isOpen, onClose, onSuccess, socket }) {
   const { account } = useWallet();
@@ -77,6 +79,9 @@ export default function CreateRoomModal({ isOpen, onClose, onSuccess, socket }) 
       
       // Extract roomId from blockchain event
       const blockchainRoomId = createResult.roomId;
+      const shortRoomId = encodeRoomId(blockchainRoomId);
+      
+      console.log(`✅ Room created! Code: ${shortRoomId}`);
       
       // Step 3: Notify backend via Socket.IO
       if (socket) {
@@ -89,10 +94,10 @@ export default function CreateRoomModal({ isOpen, onClose, onSuccess, socket }) 
         });
 
         // Wait for backend confirmation
-        socket.once('roomCreated', ({ roomId }) => {
+        socket.once('roomCreated', ({ roomId, shortRoomId: backendShortId }) => {
           setLoading(false);
           setStep('input');
-          onSuccess(roomId, blockchainRoomId);
+          onSuccess(roomId, blockchainRoomId, shortRoomId);
         });
 
         socket.once('error', ({ message }) => {

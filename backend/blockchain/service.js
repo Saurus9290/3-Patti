@@ -1,5 +1,6 @@
 import { ethers } from 'ethers';
 import { blockchainConfig, getNetworkConfig } from './config.js';
+import { encodeRoomId, formatRoomIdDisplay } from '../utils/roomIdUtils.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -106,37 +107,63 @@ class BlockchainService {
 
     // Listen for RoomCreated events
     this.gameContract.on('RoomCreated', (roomId, creator, buyIn, maxPlayers, event) => {
-      console.log(`📢 RoomCreated event: ${roomId}`);
+      const shortId = encodeRoomId(roomId);
+      console.log(`📢 RoomCreated event: ${formatRoomIdDisplay(roomId)} (${shortId})`);
       io.emit('blockchainEvent', {
         type: 'RoomCreated',
-        data: { roomId, creator, buyIn: buyIn.toString(), maxPlayers: maxPlayers.toString() }
+        data: { 
+          roomId, 
+          shortRoomId: shortId,
+          creator, 
+          buyIn: buyIn.toString(), 
+          maxPlayers: maxPlayers.toString() 
+        }
       });
     });
 
     // Listen for PlayerJoined events
     this.gameContract.on('PlayerJoined', (roomId, player, buyIn, event) => {
-      console.log(`📢 PlayerJoined event: ${player} joined ${roomId}`);
+      const shortId = encodeRoomId(roomId);
+      console.log(`📢 PlayerJoined event: ${player} joined ${formatRoomIdDisplay(roomId)}`);
       io.emit('blockchainEvent', {
         type: 'PlayerJoined',
-        data: { roomId, player, buyIn: buyIn.toString() }
+        data: { 
+          roomId, 
+          shortRoomId: shortId,
+          player, 
+          buyIn: buyIn.toString() 
+        }
       });
     });
 
     // Listen for GameStarted events
     this.gameContract.on('GameStarted', (roomId, pot, playerCount, event) => {
-      console.log(`📢 GameStarted event: ${roomId}`);
+      const shortId = encodeRoomId(roomId);
+      console.log(`📢 GameStarted event: ${formatRoomIdDisplay(roomId)}`);
       io.emit('blockchainEvent', {
         type: 'GameStarted',
-        data: { roomId, pot: pot.toString(), playerCount: playerCount.toString() }
+        data: { 
+          roomId, 
+          shortRoomId: shortId,
+          pot: pot.toString(), 
+          playerCount: playerCount.toString() 
+        }
       });
     });
 
     // Listen for WinnerDeclared events
     this.gameContract.on('WinnerDeclared', (roomId, winner, amount, rake, event) => {
-      console.log(`📢 WinnerDeclared event: ${winner} won ${amount} in ${roomId}`);
+      const shortId = encodeRoomId(roomId);
+      console.log(`📢 WinnerDeclared event: ${winner} won ${amount} in ${formatRoomIdDisplay(roomId)}`);
       io.emit('blockchainEvent', {
         type: 'WinnerDeclared',
-        data: { roomId, winner, amount: amount.toString(), rake: rake.toString() }
+        data: { 
+          roomId, 
+          shortRoomId: shortId,
+          winner, 
+          amount: amount.toString(), 
+          rake: rake.toString() 
+        }
       });
     });
 
@@ -156,6 +183,8 @@ class BlockchainService {
     try {
       const details = await this.gameContract.getRoomDetails(roomId);
       return {
+        roomId,
+        shortRoomId: encodeRoomId(roomId),
         creator: details.creator,
         buyIn: details.buyIn,
         pot: details.pot,

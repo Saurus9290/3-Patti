@@ -18,31 +18,35 @@ export default function Home({ socket }) {
   const [showCreateRoom, setShowCreateRoom] = useState(false);
   const [showJoinRoom, setShowJoinRoom] = useState(false);
 
-  function handleCreateRoomSuccess(socketRoomId, blockchainRoomId) {
-    console.log('Room created:', { socketRoomId, blockchainRoomId });
+  function handleCreateRoomSuccess(socketRoomId, blockchainRoomId, shortRoomId) {
+    console.log('Room created:', { socketRoomId, blockchainRoomId, shortRoomId });
     setShowCreateRoom(false);
     
     if (blockchainRoomId) {
-      navigate(`/room/${blockchainRoomId}`, { 
+      // Use short room ID in URL for cleaner navigation
+      navigate(`/room/${shortRoomId || blockchainRoomId}`, { 
         state: { 
           playerId: account, 
           playerName: account.slice(0, 6),
-          blockchainRoomId 
+          blockchainRoomId,
+          shortRoomId 
         } 
       });
     }
   }
 
-  function handleJoinRoomSuccess(socketRoomId, blockchainRoomId) {
-    console.log('Room joined:', { socketRoomId, blockchainRoomId });
+  function handleJoinRoomSuccess(socketRoomId, blockchainRoomId, shortRoomId) {
+    console.log('Room joined:', { socketRoomId, blockchainRoomId, shortRoomId });
     setShowJoinRoom(false);
     
     if (blockchainRoomId) {
-      navigate(`/room/${blockchainRoomId}`, { 
+      // Use short room ID in URL for cleaner navigation
+      navigate(`/room/${shortRoomId || blockchainRoomId}`, { 
         state: { 
           playerId: account, 
           playerName: account.slice(0, 6),
-          blockchainRoomId 
+          blockchainRoomId,
+          shortRoomId 
         } 
       });
     }

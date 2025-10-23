@@ -15,8 +15,10 @@ import {
 } from 'lucide-react';
 import Button from '@/components/Button';
 import PlayerSeat from '@/components/PlayerSeat';
+import RoomIdDisplay from '@/components/RoomIdDisplay';
 import { formatChips } from '@/lib/utils';
 import { useContracts } from '@/hooks/useContracts';
+import { encodeRoomId } from '@/utils/roomIdUtils';
 import GameABI from '@/contracts/TeenPattiGame.json';
 import addresses from '@/contracts/addresses.json';
 
@@ -28,8 +30,25 @@ export default function GameRoom({ socket }) {
   
   const [playerId, setPlayerId] = useState(location.state?.playerId || '');
   const [playerName, setPlayerName] = useState(location.state?.playerName || '');
-  const [blockchainRoomId] = useState(location.state?.blockchainRoomId || roomId);
+  const [blockchainRoomId, setBlockchainRoomId] = useState(location.state?.blockchainRoomId || null);
+  const [shortRoomId] = useState(location.state?.shortRoomId || roomId);
   const [gameState, setGameState] = useState(null);
+  
+  // Resolve short room code to full ID if needed
+  useEffect(() => {
+    if (!blockchainRoomId && shortRoomId) {
+      // Try to resolve short code to full ID via API
+      fetch(`http://localhost:3001/api/rooms/${shortRoomId}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && data.room) {
+            setBlockchainRoomId(data.room.blockchainRoomId || data.room.roomId);
+            console.log('Resolved room ID:', data.room.blockchainRoomId);
+          }
+        })
+        .catch(err => console.error('Error resolving room ID:', err));
+    }
+  }, [shortRoomId, blockchainRoomId]);
   const [myCards, setMyCards] = useState([]);
   const [showCards, setShowCards] = useState(false);
   const [betAmount, setBetAmount] = useState(0);
@@ -302,22 +321,15 @@ export default function GameRoom({ socket }) {
           <div className="bg-black/30 backdrop-blur-sm rounded-lg p-8 text-center">
             <Users className="w-16 h-16 text-white mx-auto mb-4 animate-pulse" />
             <h2 className="text-white text-2xl font-bold mb-4">Waiting for Players</h2>
-            <div className="bg-white/10 rounded-lg p-4 mb-4">
-              <p className="text-gray-300 text-sm mb-2">Room ID</p>
-              <div className="flex items-center justify-center gap-2">
-                <p className="text-white text-sm font-bold tracking-wider">{roomId}</p>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={handleCopyRoomId}
-                  className="text-white hover:bg-white/10"
-                >
-                  <Copy className="w-5 h-5" />
-                </Button>
-              </div>
+            <div className="flex flex-col items-center gap-4 mb-4">
+              <RoomIdDisplay 
+                roomId={blockchainRoomId || roomId} 
+                showCopy={true} 
+                showShare={true}
+              />
             </div>
             <p className="text-gray-300 mb-4">
-              Share this Room ID with your friends to join the game
+              Share this room code with your friends to join the game
             </p>
             <Button
               onClick={handleLeaveRoom}

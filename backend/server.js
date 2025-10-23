@@ -4,6 +4,7 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import { v4 as uuidv4 } from 'uuid';
 import { Game, Player } from './gameLogic.js';
+import { encodeRoomId, findFullRoomId, formatRoomIdDisplay } from './utils/roomIdUtils.js';
 
 const app = express();
 const httpServer = createServer(app);
@@ -23,8 +24,84 @@ const games = new Map();
 // Store player socket mappings
 const playerSockets = new Map();
 
+// Helper function to get room by short or full ID
+function getRoomByShortId(shortOrFullId) {
+  // If it's already a full ID in the map, return directly
+  if (games.has(shortOrFullId)) {
+    return games.get(shortOrFullId);
+  }
+  
+  // Otherwise, search for matching short ID
+  const roomList = Array.from(games.entries()).map(([id, game]) => ({
+    roomId: id,
+    fullRoomId: game.blockchainRoomId || id,
+    game
+  }));
+  
+  const fullId = findFullRoomId(shortOrFullId, roomList);
+  return fullId ? games.get(fullId) : null;
+}
+
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', activeGames: games.size });
+});
+
+// Get active rooms - returns list with both full and short IDs
+app.get('/api/rooms/active', (req, res) => {
+  try {
+    const activeRooms = Array.from(games.entries()).map(([roomId, game]) => {
+      const fullRoomId = game.blockchainRoomId || roomId;
+      const shortRoomId = game.shortRoomId || encodeRoomId(fullRoomId);
+      
+      return {
+        roomId: fullRoomId,
+        shortRoomId: shortRoomId,
+        creator: game.players[0]?.name || 'Unknown',
+        playerCount: game.players.length,
+        maxPlayers: game.maxPlayers || 6,
+        buyIn: game.buyIn || 'N/A',
+        state: game.gameStarted ? 'active' : 'waiting',
+        blockchainRoomId: game.blockchainRoomId
+      };
+    });
+    
+    res.json({ success: true, rooms: activeRooms });
+  } catch (error) {
+    console.error('Error fetching active rooms:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get room by short or full ID
+app.get('/api/rooms/:roomId', (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const game = getRoomByShortId(roomId);
+    
+    if (!game) {
+      return res.status(404).json({ success: false, error: 'Room not found' });
+    }
+    
+    const fullRoomId = game.blockchainRoomId || roomId;
+    const shortRoomId = game.shortRoomId || encodeRoomId(fullRoomId);
+    
+    res.json({
+      success: true,
+      room: {
+        roomId: fullRoomId,
+        shortRoomId: shortRoomId,
+        creator: game.players[0]?.name || 'Unknown',
+        playerCount: game.players.length,
+        maxPlayers: game.maxPlayers || 6,
+        buyIn: game.buyIn || 'N/A',
+        state: game.gameStarted ? 'active' : 'waiting',
+        blockchainRoomId: game.blockchainRoomId
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching room:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
 io.on('connection', (socket) => {
@@ -55,7 +132,8 @@ io.on('connection', (socket) => {
 
   // Create room with blockchain integration
   socket.on('createRoomWithBlockchain', ({ blockchainRoomId, buyIn, maxPlayers, creator, txHash }) => {
-    console.log('Creating blockchain room:', blockchainRoomId);
+    const shortId = encodeRoomId(blockchainRoomId);
+    console.log(`Creating blockchain room: ${formatRoomIdDisplay(blockchainRoomId)} (${shortId})`);
     
     // Use blockchain room ID as the game room ID
     const roomId = blockchainRoomId;
@@ -64,6 +142,7 @@ io.on('connection', (socket) => {
     
     const game = new Game(roomId);
     game.blockchainRoomId = blockchainRoomId;
+    game.shortRoomId = shortId;
     game.buyIn = buyIn;
     game.maxPlayers = maxPlayers;
     game.txHash = txHash;
@@ -79,16 +158,24 @@ io.on('connection', (socket) => {
     
     socket.emit('roomCreated', {
       roomId,
+      shortRoomId: shortId,
       playerId,
       gameState: game.getGameState()
     });
     
-    console.log(`Blockchain room ${roomId} created by ${creator} (tx: ${txHash})`);
+    console.log(`Blockchain room created by ${creator} (tx: ${txHash})`);
   });
 
   // Join an existing game room
   socket.on('joinRoom', ({ roomId, playerName }) => {
-    const game = games.get(roomId);
+    // Support both short and full room IDs
+    let game = getRoomByShortId(roomId);
+    let fullRoomId = roomId;
+    
+    // If found via short ID, get the full ID
+    if (game && game.blockchainRoomId) {
+      fullRoomId = game.blockchainRoomId;
+    }
     
     if (!game) {
       socket.emit('error', { message: 'Room not found' });
@@ -109,18 +196,19 @@ io.on('connection', (socket) => {
     const player = new Player(playerId, playerName, socket.id);
     
     game.addPlayer(player);
-    playerSockets.set(socket.id, { playerId, roomId });
+    playerSockets.set(socket.id, { playerId, roomId: fullRoomId });
     
-    socket.join(roomId);
+    socket.join(fullRoomId);
     
     socket.emit('roomJoined', {
-      roomId,
+      roomId: fullRoomId,
+      shortRoomId: game.shortRoomId || encodeRoomId(fullRoomId),
       playerId,
       gameState: game.getGameState()
     });
 
     // Notify all players in the room
-    io.to(roomId).emit('playerJoined', {
+    io.to(fullRoomId).emit('playerJoined', {
       player: {
         id: playerId,
         name: playerName,
@@ -129,12 +217,14 @@ io.on('connection', (socket) => {
       gameState: game.getGameState()
     });
 
-    console.log(`${playerName} joined room ${roomId}`);
+    const displayId = game.shortRoomId || encodeRoomId(fullRoomId);
+    console.log(`${playerName} joined room #${displayId}`);
   });
 
   // Join room with blockchain integration
   socket.on('joinRoomWithBlockchain', ({ blockchainRoomId, player, txHash }) => {
-    console.log('Joining blockchain room:', blockchainRoomId);
+    const shortId = encodeRoomId(blockchainRoomId);
+    console.log(`Joining blockchain room: ${formatRoomIdDisplay(blockchainRoomId)} (${shortId})`);
     
     const roomId = blockchainRoomId;
     const game = games.get(roomId);
