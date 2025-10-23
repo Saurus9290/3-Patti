@@ -10,14 +10,14 @@
  * @returns {string} - Short 6-character uppercase hex code
  */
 export function encodeRoomId(fullRoomId) {
-  if (!fullRoomId) return '';
-  
+  if (!fullRoomId) return "";
+
   // Remove 0x prefix if present
-  const hex = fullRoomId.startsWith('0x') ? fullRoomId.slice(2) : fullRoomId;
-  
+  const hex = fullRoomId.startsWith("0x") ? fullRoomId.slice(2) : fullRoomId;
+
   // Take first 6 characters (3 bytes) and uppercase
   const shortId = hex.slice(0, 6).toUpperCase();
-  
+
   return shortId;
 }
 
@@ -31,7 +31,7 @@ export function encodeRoomId(fullRoomId) {
  */
 export function verifyRoomId(shortRoomId, fullRoomId) {
   if (!shortRoomId || !fullRoomId) return false;
-  
+
   const encoded = encodeRoomId(fullRoomId);
   return encoded.toLowerCase() === shortRoomId.toLowerCase();
 }
@@ -44,16 +44,16 @@ export function verifyRoomId(shortRoomId, fullRoomId) {
  */
 export function findFullRoomId(shortRoomId, roomList) {
   if (!shortRoomId || !roomList) return null;
-  
+
   const normalized = shortRoomId.toUpperCase();
-  
+
   for (const room of roomList) {
     const roomId = room.roomId || room.fullRoomId || room.id;
     if (roomId && encodeRoomId(roomId) === normalized) {
       return roomId;
     }
   }
-  
+
   return null;
 }
 
@@ -64,9 +64,10 @@ export function findFullRoomId(shortRoomId, roomList) {
  * @returns {string} - Formatted display string
  */
 export function formatRoomIdDisplay(roomId) {
-  if (!roomId) return 'Unknown Room';
-  
-  const shortId = roomId.length > 10 ? encodeRoomId(roomId) : roomId.toUpperCase();
+  if (!roomId) return "Unknown Room";
+
+  const shortId =
+    roomId.length > 10 ? encodeRoomId(roomId) : roomId.toUpperCase();
   return `Room #${shortId}`;
 }
 
@@ -77,7 +78,7 @@ export function formatRoomIdDisplay(roomId) {
  */
 export function isValidShortRoomId(shortRoomId) {
   if (!shortRoomId) return false;
-  
+
   // Must be exactly 6 hex characters
   return /^[0-9A-Fa-f]{6}$/.test(shortRoomId);
 }
@@ -104,7 +105,7 @@ export async function copyRoomCode(roomId) {
     await navigator.clipboard.writeText(shortId);
     return true;
   } catch (error) {
-    console.error('Failed to copy room code:', error);
+    console.error("Failed to copy room code:", error);
     return false;
   }
 }

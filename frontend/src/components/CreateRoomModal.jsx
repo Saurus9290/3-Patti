@@ -11,7 +11,7 @@ import { encodeRoomId } from '@/utils/roomIdUtils';
 export default function CreateRoomModal({ isOpen, onClose, onSuccess, socket }) {
   const { account } = useWallet();
   const { createRoom, approveTokens, gameContract, tokenContract, contractAddresses } = useContracts();
-  
+
   const [buyIn, setBuyIn] = useState('1000');
   const [maxPlayers, setMaxPlayers] = useState('4');
   const [loading, setLoading] = useState(false);
@@ -52,7 +52,7 @@ export default function CreateRoomModal({ isOpen, onClose, onSuccess, socket }) 
       // Step 1: Approve tokens
       setStep('approving');
       console.log('Approving tokens...');
-      
+
       const approveResult = await approveTokens(
         contractAddresses.TeenPattiGame,
         buyInAmount
@@ -68,7 +68,7 @@ export default function CreateRoomModal({ isOpen, onClose, onSuccess, socket }) 
       setStep('creating');
       setMessage('Tokens approved! Creating room...');
       console.log('Creating room on blockchain...');
-      
+
       const createResult = await createRoom(buyInAmount, players);
 
       if (!createResult.success) {
@@ -76,13 +76,13 @@ export default function CreateRoomModal({ isOpen, onClose, onSuccess, socket }) 
       }
 
       console.log('Room created on blockchain:', createResult);
-      
+
       // Extract roomId from blockchain event
       const blockchainRoomId = createResult.roomId;
       const shortRoomId = encodeRoomId(blockchainRoomId);
-      
+
       console.log(`✅ Room created! Code: ${shortRoomId}`);
-      
+
       // Step 3: Notify backend via Socket.IO
       if (socket) {
         socket.emit('createRoomWithBlockchain', {
@@ -116,14 +116,14 @@ export default function CreateRoomModal({ isOpen, onClose, onSuccess, socket }) 
       console.error('Error creating room:', err);
       setLoading(false);
       setStep('input');
-      
+
       let errorMessage = err.message;
       if (err.message.includes('user rejected')) {
         errorMessage = 'Transaction rejected by user';
       } else if (err.message.includes('insufficient funds')) {
         errorMessage = 'Insufficient token balance';
       }
-      
+
       setError(errorMessage);
     }
   }

@@ -21,16 +21,16 @@ export default function Home({ socket }) {
   function handleCreateRoomSuccess(socketRoomId, blockchainRoomId, shortRoomId) {
     console.log('Room created:', { socketRoomId, blockchainRoomId, shortRoomId });
     setShowCreateRoom(false);
-    
+
     if (blockchainRoomId) {
       // Use short room ID in URL for cleaner navigation
-      navigate(`/room/${shortRoomId || blockchainRoomId}`, { 
-        state: { 
-          playerId: account, 
+      navigate(`/room/${shortRoomId || blockchainRoomId}`, {
+        state: {
+          playerId: account,
           playerName: account.slice(0, 6),
           blockchainRoomId,
-          shortRoomId 
-        } 
+          shortRoomId
+        }
       });
     }
   }
@@ -38,16 +38,16 @@ export default function Home({ socket }) {
   function handleJoinRoomSuccess(socketRoomId, blockchainRoomId, shortRoomId) {
     console.log('Room joined:', { socketRoomId, blockchainRoomId, shortRoomId });
     setShowJoinRoom(false);
-    
+
     if (blockchainRoomId) {
       // Use short room ID in URL for cleaner navigation
-      navigate(`/room/${shortRoomId || blockchainRoomId}`, { 
-        state: { 
-          playerId: account, 
+      navigate(`/room/${shortRoomId || blockchainRoomId}`, {
+        state: {
+          playerId: account,
           playerName: account.slice(0, 6),
           blockchainRoomId,
-          shortRoomId 
-        } 
+          shortRoomId
+        }
       });
     }
   }

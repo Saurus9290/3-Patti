@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useReadContract } from 'wagmi';
-import { 
-  Copy, 
-  Users, 
-  Play, 
-  Eye, 
-  DollarSign, 
-  X, 
+import {
+  Copy,
+  Users,
+  Play,
+  Eye,
+  DollarSign,
+  X,
   ArrowLeft,
   Trophy,
   Coins,
@@ -27,13 +27,13 @@ export default function GameRoom({ socket }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { startGame: blockchainStartGame, declareWinner } = useContracts();
-  
+
   const [playerId, setPlayerId] = useState(location.state?.playerId || '');
   const [playerName, setPlayerName] = useState(location.state?.playerName || '');
   const [blockchainRoomId, setBlockchainRoomId] = useState(location.state?.blockchainRoomId || null);
   const [shortRoomId] = useState(location.state?.shortRoomId || roomId);
   const [gameState, setGameState] = useState(null);
-  
+
   // Resolve short room code to full ID if needed
   useEffect(() => {
     if (!blockchainRoomId && shortRoomId) {
@@ -143,13 +143,13 @@ export default function GameRoom({ socket }) {
         // Show all cards at the end
         setShowCards(true);
       }
-      
+
       setGameEnded(true);
-      
+
       if (winner) {
         setWinnerInfo({ name: winner.name, pot, reason });
         setMessage(`${winner.name} wins ${formatChips(pot)} chips! ${reason || ''}`);
-        
+
         // Declare winner on blockchain
         if (blockchainRoomId && winner.id) {
           await handleDeclareWinner(winner.id);
@@ -209,22 +209,22 @@ export default function GameRoom({ socket }) {
 
       console.log('Game started on blockchain:', result.txHash);
       setMessage('Game started successfully! ✅');
-      
+
       // Refresh blockchain data immediately after transaction
       await refetchRoomDetails();
-      
+
       // Notify backend via Socket.IO (optional)
       if (socket) {
-        socket.emit('startGame', { 
+        socket.emit('startGame', {
           blockchainRoomId,
-          txHash: result.txHash 
+          txHash: result.txHash
         });
       }
 
       setTimeout(() => setMessage(''), 3000);
     } catch (err) {
       console.error('Error starting game:', err);
-      
+
       let errorMessage = err.message;
       if (err.message.includes('user rejected')) {
         errorMessage = 'Transaction rejected by user';
@@ -235,7 +235,7 @@ export default function GameRoom({ socket }) {
       } else if (err.message.includes('Need at least 2 players')) {
         errorMessage = 'Need at least 2 players to start';
       }
-      
+
       setMessage(`Error: ${errorMessage}`);
       setTimeout(() => setMessage(''), 5000);
     } finally {
@@ -261,14 +261,14 @@ export default function GameRoom({ socket }) {
 
       console.log('Winner declared on blockchain:', result.txHash);
       setMessage('Winner declared successfully! 🏆');
-      
+
       // Refresh blockchain data immediately after transaction
       await refetchRoomDetails();
-      
+
       setTimeout(() => setMessage(''), 3000);
     } catch (err) {
       console.error('Error declaring winner:', err);
-      
+
       let errorMessage = err.message;
       if (err.message.includes('user rejected')) {
         errorMessage = 'Transaction rejected by user';
@@ -277,7 +277,7 @@ export default function GameRoom({ socket }) {
       } else if (err.message.includes('Game not active')) {
         errorMessage = 'Game is not active';
       }
-      
+
       setMessage(`Error declaring winner: ${errorMessage}`);
       setTimeout(() => setMessage(''), 5000);
     }
@@ -322,9 +322,9 @@ export default function GameRoom({ socket }) {
             <Users className="w-16 h-16 text-white mx-auto mb-4 animate-pulse" />
             <h2 className="text-white text-2xl font-bold mb-4">Waiting for Players</h2>
             <div className="flex flex-col items-center gap-4 mb-4">
-              <RoomIdDisplay 
-                roomId={blockchainRoomId || roomId} 
-                showCopy={true} 
+              <RoomIdDisplay
+                roomId={blockchainRoomId || roomId}
+                showCopy={true}
                 showShare={true}
               />
             </div>
@@ -346,9 +346,9 @@ export default function GameRoom({ socket }) {
   }
 
   const currentPlayer = gameState?.players.find(p => p.id === playerId);
-  const isMyTurn = gameState?.currentPlayerIndex !== undefined && 
-                   gameState?.players[gameState.currentPlayerIndex]?.id === playerId;
-  
+  const isMyTurn = gameState?.currentPlayerIndex !== undefined &&
+    gameState?.players[gameState.currentPlayerIndex]?.id === playerId;
+
   // Use blockchain data to determine if game can start
   // Parse blockchain room details (array from contract)
   const roomCreator = blockchainRoomDetails?.[0];
@@ -360,14 +360,14 @@ export default function GameRoom({ socket }) {
   const roomWinner = blockchainRoomDetails?.[6];
 
   // Only room creator can start the game
-  const isCreator = roomCreator && 
-                    playerId && 
-                    roomCreator.toLowerCase() === playerId.toLowerCase();
-  
-  const canStartGame = blockchainRoomDetails && 
-                       isCreator && // Must be the room creator
-                       Number(roomState) === 0 && // 0 = WAITING
-                       Number(roomCurrentPlayers) >= 2;
+  const isCreator = roomCreator &&
+    playerId &&
+    roomCreator.toLowerCase() === playerId.toLowerCase();
+
+  const canStartGame = blockchainRoomDetails &&
+    isCreator && // Must be the room creator
+    Number(roomState) === 0 && // 0 = WAITING
+    Number(roomCurrentPlayers) >= 2;
 
   // Calculate min and max bet
   const minBet = currentPlayer?.isBlind ? gameState.currentBet : gameState.currentBet * 2;
@@ -424,9 +424,9 @@ export default function GameRoom({ socket }) {
                     Buy-in: {roomBuyIn ? (Number(roomBuyIn) / 1e18).toFixed(0) : '0'} TPT
                   </p>
                   <p className={`text-xs ${Number(roomState) === 0 ? 'text-yellow-400' : 'text-green-400'}`}>
-                    {Number(roomState) === 0 ? '⏳ Waiting' : 
-                     Number(roomState) === 1 ? '🎮 Active' : 
-                     Number(roomState) === 2 ? '✅ Finished' : '❌ Cancelled'}
+                    {Number(roomState) === 0 ? '⏳ Waiting' :
+                      Number(roomState) === 1 ? '🎮 Active' :
+                        Number(roomState) === 2 ? '✅ Finished' : '❌ Cancelled'}
                   </p>
                 </div>
               ) : (
@@ -445,7 +445,7 @@ export default function GameRoom({ socket }) {
               <Copy className="w-4 h-4 mr-2" />
               Copy Room ID
             </Button>
-            
+
             {canStartGame && (
               <Button
                 onClick={handleStartGame}
@@ -499,39 +499,39 @@ export default function GameRoom({ socket }) {
           <div className="absolute inset-0 p-8">
             {gameState.players.map((player, index) => {
               const position = getPlayerPosition(index, gameState.players.length);
-              const isCurrentTurn = gameState.gameStarted && 
-                                   gameState.currentPlayerIndex === index;
+              const isCurrentTurn = gameState.gameStarted &&
+                gameState.currentPlayerIndex === index;
               const isDealer = gameState.dealerIndex === index;
-              
+
               let positionClass = '';
               if (position === 'bottom') {
                 positionClass = 'bottom-4 left-1/2 -translate-x-1/2';
               } else if (position === 'top') {
-                positionClass = index === 1 && gameState.players.length === 3 
+                positionClass = index === 1 && gameState.players.length === 3
                   ? 'top-4 left-1/4 -translate-x-1/2'
                   : index === 2 && gameState.players.length === 3
-                  ? 'top-4 right-1/4 translate-x-1/2'
-                  : index === 2 && gameState.players.length === 5
-                  ? 'top-4 left-1/3 -translate-x-1/2'
-                  : index === 3 && gameState.players.length === 5
-                  ? 'top-4 right-1/3 translate-x-1/2'
-                  : 'top-4 left-1/2 -translate-x-1/2';
+                    ? 'top-4 right-1/4 translate-x-1/2'
+                    : index === 2 && gameState.players.length === 5
+                      ? 'top-4 left-1/3 -translate-x-1/2'
+                      : index === 3 && gameState.players.length === 5
+                        ? 'top-4 right-1/3 translate-x-1/2'
+                        : 'top-4 left-1/2 -translate-x-1/2';
               } else if (position === 'left') {
                 positionClass = index === 1 && gameState.players.length === 5
                   ? 'left-4 top-1/3 -translate-y-1/2'
                   : index === 1 && gameState.players.length === 6
-                  ? 'left-4 top-1/4 -translate-y-1/2'
-                  : index === 2 && gameState.players.length === 6
-                  ? 'left-4 top-2/3 -translate-y-1/2'
-                  : 'left-4 top-1/2 -translate-y-1/2';
+                    ? 'left-4 top-1/4 -translate-y-1/2'
+                    : index === 2 && gameState.players.length === 6
+                      ? 'left-4 top-2/3 -translate-y-1/2'
+                      : 'left-4 top-1/2 -translate-y-1/2';
               } else if (position === 'right') {
                 positionClass = index === 4 && gameState.players.length === 5
                   ? 'right-4 top-1/3 -translate-y-1/2'
                   : index === 4 && gameState.players.length === 6
-                  ? 'right-4 top-1/4 -translate-y-1/2'
-                  : index === 5 && gameState.players.length === 6
-                  ? 'right-4 top-2/3 -translate-y-1/2'
-                  : 'right-4 top-1/2 -translate-y-1/2';
+                    ? 'right-4 top-1/4 -translate-y-1/2'
+                    : index === 5 && gameState.players.length === 6
+                      ? 'right-4 top-2/3 -translate-y-1/2'
+                      : 'right-4 top-1/2 -translate-y-1/2';
               }
 
               const playerCards = player.id === playerId ? myCards : [];
@@ -698,7 +698,7 @@ export default function GameRoom({ socket }) {
               Waiting for players...
             </h3>
             <p className="text-gray-300">
-              {gameState.players.length >= 2 
+              {gameState.players.length >= 2
                 ? 'Ready to start! Click "Start Game" to begin.'
                 : 'Need at least 2 players to start the game.'}
             </p>
@@ -712,7 +712,7 @@ export default function GameRoom({ socket }) {
           <div className="bg-gradient-to-br from-yellow-600 to-orange-600 rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl border-4 border-yellow-400">
             <div className="text-center">
               <Trophy className="w-24 h-24 text-white mx-auto mb-4 animate-bounce" />
-              
+
               {winnerInfo ? (
                 <>
                   <h2 className="text-white text-4xl font-bold mb-2">

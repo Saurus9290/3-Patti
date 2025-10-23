@@ -10,7 +10,7 @@ import { isValidShortRoomId } from '@/utils/roomIdUtils';
 export default function JoinRoomModal({ isOpen, onClose, onSuccess, socket, roomId: initialRoomId }) {
   const { account } = useWallet();
   const { joinRoom, approveTokens, getRoomDetails, contractAddresses } = useContracts();
-  
+
   const [blockchainRoomId, setBlockchainRoomId] = useState('');
   const [roomDetails, setRoomDetails] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -31,7 +31,7 @@ export default function JoinRoomModal({ isOpen, onClose, onSuccess, socket, room
         const timeoutId = setTimeout(() => {
           fetchRoomDetails();
         }, 500); // Debounce for 500ms
-        
+
         return () => clearTimeout(timeoutId);
       }
     }
@@ -42,34 +42,34 @@ export default function JoinRoomModal({ isOpen, onClose, onSuccess, socket, room
   async function fetchRoomDetails() {
     setLoadingDetails(true);
     setError('');
-    
+
     try {
       let fullRoomId = blockchainRoomId;
-      
+
       // If it's a short code (6 chars), we need to find the full ID
       if (isValidShortRoomId(blockchainRoomId) && !blockchainRoomId.startsWith('0x')) {
         console.log('Looking up short code:', blockchainRoomId);
-        
+
         // Fetch room from backend by short code
         const response = await fetch(`http://localhost:3001/api/rooms/${blockchainRoomId}`);
         const data = await response.json();
-        
+
         if (!data.success || !data.room) {
           setError('Room not found. Please check the room code.');
           setRoomDetails(null);
           setLoadingDetails(false);
           return;
         }
-        
+
         fullRoomId = data.room.blockchainRoomId || data.room.roomId;
         console.log('Resolved short code to full ID:', fullRoomId);
-        
+
         // Update the input to show full ID (optional)
         // setBlockchainRoomId(fullRoomId);
       }
-      
+
       const details = await getRoomDetails(fullRoomId);
-      
+
       if (!details) {
         setError('Room not found on blockchain');
         setRoomDetails(null);
@@ -109,16 +109,16 @@ export default function JoinRoomModal({ isOpen, onClose, onSuccess, socket, room
       setError('Please load room details first');
       return;
     }
-    
+
     // Get full room ID for blockchain transaction
     let fullRoomId = roomDetails.roomId || blockchainRoomId;
-    
+
     // If short code, resolve it
     if (isValidShortRoomId(blockchainRoomId) && !blockchainRoomId.startsWith('0x')) {
       try {
         const response = await fetch(`http://localhost:3001/api/rooms/${blockchainRoomId}`);
         const data = await response.json();
-        
+
         if (data.success && data.room) {
           fullRoomId = data.room.blockchainRoomId || data.room.roomId;
         }
@@ -136,7 +136,7 @@ export default function JoinRoomModal({ isOpen, onClose, onSuccess, socket, room
       // Step 1: Approve tokens
       setStep('approving');
       console.log('Approving tokens...');
-      
+
       const approveResult = await approveTokens(
         contractAddresses.TeenPattiGame,
         buyInAmount
@@ -151,7 +151,7 @@ export default function JoinRoomModal({ isOpen, onClose, onSuccess, socket, room
       // Step 2: Join room on blockchain (use full room ID)
       setStep('joining');
       console.log('Joining room on blockchain...', fullRoomId);
-      
+
       const joinResult = await joinRoom(fullRoomId);
 
       if (!joinResult.success) {
@@ -159,7 +159,7 @@ export default function JoinRoomModal({ isOpen, onClose, onSuccess, socket, room
       }
 
       console.log('Joined room on blockchain:', joinResult);
-      
+
       // Step 3: Notify backend via Socket.IO
       if (socket) {
         socket.emit('joinRoomWithBlockchain', {
@@ -191,7 +191,7 @@ export default function JoinRoomModal({ isOpen, onClose, onSuccess, socket, room
       console.error('Error joining room:', err);
       setLoading(false);
       setStep('input');
-      
+
       let errorMessage = err.message;
       if (err.message.includes('user rejected')) {
         errorMessage = 'Transaction rejected by user';
@@ -202,7 +202,7 @@ export default function JoinRoomModal({ isOpen, onClose, onSuccess, socket, room
       } else if (err.message.includes('Room is full')) {
         errorMessage = 'Room is full';
       }
-      
+
       setError(errorMessage);
     }
   }
