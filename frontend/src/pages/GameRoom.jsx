@@ -285,6 +285,11 @@ export default function GameRoom({ socket }) {
     setBetAmount(0);
   };
 
+  const handleShow = () => {
+    // Request showdown - compare cards with all remaining players
+    socket.emit('show');
+  };
+
   const handleLeaveRoom = () => {
     socket.emit('leaveRoom');
     navigate('/');
@@ -566,6 +571,17 @@ export default function GameRoom({ socket }) {
                 >
                   <Eye className="w-4 h-4 mr-2" />
                   See Cards
+                </Button>
+              )}
+
+              {/* Show Button - Only if player has seen cards and 2+ players remain */}
+              {isMyTurn && showCards && gameState?.players.filter(p => !p.isFolded).length >= 2 && (
+                <Button
+                  onClick={handleShow}
+                  className="bg-yellow-600 hover:bg-yellow-700"
+                >
+                  <Eye className="w-4 h-4 mr-2" />
+                  Show
                 </Button>
               )}
 

@@ -8,12 +8,13 @@ import { useWallet } from '@/hooks/useWallet';
 
 export default function CreateRoomModal({ isOpen, onClose, onSuccess, socket }) {
   const { account } = useWallet();
-  const { createRoom, approveTokens, gameContract, contractAddresses } = useContracts();
+  const { createRoom, approveTokens, gameContract, tokenContract, contractAddresses } = useContracts();
   
   const [buyIn, setBuyIn] = useState('1000');
   const [maxPlayers, setMaxPlayers] = useState('4');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
   const [step, setStep] = useState('input'); // input, approving, creating
 
   if (!isOpen) return null;
@@ -21,6 +22,11 @@ export default function CreateRoomModal({ isOpen, onClose, onSuccess, socket }) 
   async function handleCreate() {
     if (!account) {
       setError('Please connect your wallet');
+      return;
+    }
+
+    if (!gameContract || !tokenContract || !contractAddresses) {
+      setError('Contracts not initialized. Please wait a moment and try again.');
       return;
     }
 
@@ -58,6 +64,7 @@ export default function CreateRoomModal({ isOpen, onClose, onSuccess, socket }) 
 
       // Step 2: Create room on blockchain
       setStep('creating');
+      setMessage('Tokens approved! Creating room...');
       console.log('Creating room on blockchain...');
       
       const createResult = await createRoom(buyInAmount, players);
@@ -197,6 +204,13 @@ export default function CreateRoomModal({ isOpen, onClose, onSuccess, socket }) 
             </div>
           )}
 
+          {/* Success Message */}
+          {message && !error && (
+            <div className="bg-green-600/20 border border-green-600/50 rounded-lg p-3 text-green-200 text-sm">
+              {message}
+            </div>
+          )}
+
           {/* Error Message */}
           {error && (
             <div className="bg-red-600/20 border border-red-600/50 rounded-lg p-3 text-red-200 text-sm">
@@ -227,14 +241,16 @@ export default function CreateRoomModal({ isOpen, onClose, onSuccess, socket }) 
             </Button>
             <Button
               onClick={handleCreate}
-              disabled={loading}
-              className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+              disabled={loading || !gameContract || !tokenContract}
+              className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   Processing...
                 </>
+              ) : !gameContract || !tokenContract ? (
+                'Initializing...'
               ) : (
                 'Create Room'
               )}

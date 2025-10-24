@@ -393,31 +393,41 @@ io.on('connection', (socket) => {
 
     const activePlayers = game.getActivePlayers();
     
-    if (activePlayers.length === 2) {
-      const player1 = activePlayers[0];
-      const player2 = activePlayers[1];
-      
-      const winner = game.compareHands(player1, player2);
-      
-      if (winner) {
-        const gameResult = game.endGame(winner);
-        
-        // Reveal all cards
-        const allCards = {};
-        game.players.forEach(p => {
-          allCards[p.id] = game.getPlayerCards(p.id);
-        });
+    if (activePlayers.length < 2) {
+      socket.emit('error', { message: 'Need at least 2 players for show' });
+      return;
+    }
 
-        io.to(playerInfo.roomId).emit('gameEnded', {
-          winner: {
-            id: winner.id,
-            name: winner.name
-          },
-          pot: gameResult.pot,
-          allCards,
-          gameState: game.getGameState()
-        });
+    // Find the winner by comparing all active players
+    let winner = activePlayers[0];
+    for (let i = 1; i < activePlayers.length; i++) {
+      const compareResult = game.compareHands(winner, activePlayers[i]);
+      if (compareResult && compareResult.id === activePlayers[i].id) {
+        winner = activePlayers[i];
       }
+    }
+    
+    if (winner) {
+      const gameResult = game.endGame(winner);
+      
+      // Reveal all cards
+      const allCards = {};
+      game.players.forEach(p => {
+        allCards[p.id] = game.getPlayerCards(p.id);
+      });
+
+      io.to(playerInfo.roomId).emit('gameEnded', {
+        winner: {
+          id: winner.id,
+          name: winner.name
+        },
+        pot: gameResult.pot,
+        allCards,
+        reason: 'Show',
+        gameState: game.getGameState()
+      });
+
+      console.log(`Show in room ${playerInfo.roomId}. Winner: ${winner.name}`);
     }
   });
 
