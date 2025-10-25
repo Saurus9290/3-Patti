@@ -1,7 +1,7 @@
 const { ethers } = require("ethers");
 
 async function main() {
-  const tokenAddress = "0x0755C24388721293cC01e6fBAa94562dd3Ced12B";
+  const tokenAddress = "0x5972D8350471828c54A4E508039768A0d4EAD034";
   
   // Connect to Base Sepolia
   const provider = new ethers.JsonRpcProvider("https://sepolia.base.org");

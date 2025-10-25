@@ -598,7 +598,7 @@ export default function GameRoom({ socket }) {
               )}
 
               {/* Bet Button */}
-              {isMyTurn && (
+              {/* {isMyTurn && (
                 <>
                   {!showBetInput ? (
                     <Button
@@ -638,7 +638,7 @@ export default function GameRoom({ socket }) {
                     </div>
                   )}
                 </>
-              )}
+              )} */}
 
               {/* Quick Bet Buttons */}
               {isMyTurn && !showBetInput && (
@@ -648,21 +648,21 @@ export default function GameRoom({ socket }) {
                     variant="outline"
                     className="bg-white/10 text-white border-white/20 hover:bg-white/20"
                   >
-                    Min ({formatChips(minBet)})
+                    {currentPlayer.isBlind ? 'Blind Min' : 'Min Chaal'} ({formatChips(minBet)})
                   </Button>
                   <Button
                     onClick={() => handleBet(Math.floor((minBet + maxBet) / 2))}
                     variant="outline"
                     className="bg-white/10 text-white border-white/20 hover:bg-white/20"
                   >
-                    Mid ({formatChips(Math.floor((minBet + maxBet) / 2))})
+                    {currentPlayer.isBlind ? 'Blind Mid' : 'Mid Chaal'} ({formatChips(Math.floor((minBet + maxBet) / 2))})
                   </Button>
                   <Button
                     onClick={() => handleBet(maxBet)}
                     variant="outline"
                     className="bg-white/10 text-white border-white/20 hover:bg-white/20"
                   >
-                    Max ({formatChips(maxBet)})
+                    {currentPlayer.isBlind ? 'Blind Max' : 'Max Chaal'} ({formatChips(maxBet)})
                   </Button>
                 </>
               )}

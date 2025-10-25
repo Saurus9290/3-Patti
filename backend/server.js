@@ -54,7 +54,7 @@ io.on('connection', (socket) => {
   });
 
   // Create room with blockchain integration
-  socket.on('createRoomWithBlockchain', ({ blockchainRoomId, buyIn, maxPlayers, creator, txHash }) => {
+  socket.on('createRoomWithBlockchain', ({ blockchainRoomId, buyIn, maxPlayers, creator, txHash, tokenBalance }) => {
     console.log('Creating blockchain room:', blockchainRoomId);
     
     // Use blockchain room ID as the game room ID
@@ -68,7 +68,9 @@ io.on('connection', (socket) => {
     game.maxPlayers = maxPlayers;
     game.txHash = txHash;
     
-    const player = new Player(playerId, playerName, socket.id);
+    // Use token balance if provided, otherwise default to 1000000
+    const playerChips = tokenBalance ? Math.floor(tokenBalance) : 1000000;
+    const player = new Player(playerId, playerName, socket.id, playerChips);
     player.walletAddress = creator;
     
     game.addPlayer(player);
@@ -133,7 +135,7 @@ io.on('connection', (socket) => {
   });
 
   // Join room with blockchain integration
-  socket.on('joinRoomWithBlockchain', ({ blockchainRoomId, player, txHash }) => {
+  socket.on('joinRoomWithBlockchain', ({ blockchainRoomId, player, txHash, tokenBalance }) => {
     console.log('Joining blockchain room:', blockchainRoomId);
     
     const roomId = blockchainRoomId;
@@ -164,7 +166,9 @@ io.on('connection', (socket) => {
     const playerId = player; // Use wallet address as player ID
     const playerName = player.slice(0, 6); // Short address as name
     
-    const newPlayer = new Player(playerId, playerName, socket.id);
+    // Use token balance if provided, otherwise default to 1000000
+    const playerChips = tokenBalance ? Math.floor(tokenBalance) : 1000000;
+    const newPlayer = new Player(playerId, playerName, socket.id, playerChips);
     newPlayer.walletAddress = player;
     
     game.addPlayer(newPlayer);

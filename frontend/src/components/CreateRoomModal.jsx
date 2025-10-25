@@ -5,10 +5,25 @@ import Button from './Button';
 import Input from './Input';
 import { useContracts } from '@/hooks/useContracts';
 import { useWallet } from '@/hooks/useWallet';
+import { useAccount, useReadContract } from 'wagmi';
+import TokenABI from '@/contracts/TeenPattiToken.json';
+import addresses from '@/contracts/addresses.json';
 
 export default function CreateRoomModal({ isOpen, onClose, onSuccess, socket }) {
   const { account } = useWallet();
+  const { address: walletAddress } = useAccount();
   const { createRoom, approveTokens, gameContract, tokenContract, contractAddresses } = useContracts();
+  
+  // Get token balance
+  const { data: balance } = useReadContract({
+    address: addresses.baseSepolia?.TeenPattiToken,
+    abi: TokenABI.abi,
+    functionName: 'balanceOf',
+    args: walletAddress ? [walletAddress] : undefined,
+    query: {
+      enabled: !!walletAddress,
+    },
+  });
   
   const [buyIn, setBuyIn] = useState('1000');
   const [maxPlayers, setMaxPlayers] = useState('4');
@@ -80,12 +95,16 @@ export default function CreateRoomModal({ isOpen, onClose, onSuccess, socket }) 
       
       // Step 3: Notify backend via Socket.IO
       if (socket) {
+        // Convert balance to number (in tokens, not wei)
+        const tokenBalance = balance ? parseFloat(ethers.formatEther(balance)) : 0;
+        
         socket.emit('createRoomWithBlockchain', {
           blockchainRoomId: blockchainRoomId.toString(),
           buyIn: buyIn,
           maxPlayers: players,
           creator: account,
-          txHash: createResult.txHash
+          txHash: createResult.txHash,
+          tokenBalance: tokenBalance
         });
 
         // Wait for backend confirmation

@@ -5,10 +5,25 @@ import Button from './Button';
 import Input from './Input';
 import { useContracts } from '@/hooks/useContracts';
 import { useWallet } from '@/hooks/useWallet';
+import { useAccount, useReadContract } from 'wagmi';
+import TokenABI from '@/contracts/TeenPattiToken.json';
+import addresses from '@/contracts/addresses.json';
 
 export default function JoinRoomModal({ isOpen, onClose, onSuccess, socket, roomId: initialRoomId }) {
   const { account } = useWallet();
+  const { address: walletAddress } = useAccount();
   const { joinRoom, approveTokens, getRoomDetails, contractAddresses } = useContracts();
+  
+  // Get token balance
+  const { data: balance } = useReadContract({
+    address: addresses.baseSepolia?.TeenPattiToken,
+    abi: TokenABI.abi,
+    functionName: 'balanceOf',
+    args: walletAddress ? [walletAddress] : undefined,
+    query: {
+      enabled: !!walletAddress,
+    },
+  });
   
   const [blockchainRoomId, setBlockchainRoomId] = useState('');
   const [roomDetails, setRoomDetails] = useState(null);
@@ -113,10 +128,14 @@ export default function JoinRoomModal({ isOpen, onClose, onSuccess, socket, room
       
       // Step 3: Notify backend via Socket.IO
       if (socket) {
+        // Convert balance to number (in tokens, not wei)
+        const tokenBalance = balance ? parseFloat(ethers.formatEther(balance)) : 0;
+        
         socket.emit('joinRoomWithBlockchain', {
           blockchainRoomId: blockchainRoomId,
           player: account,
-          txHash: joinResult.txHash
+          txHash: joinResult.txHash,
+          tokenBalance: tokenBalance
         });
 
         // Wait for backend confirmation

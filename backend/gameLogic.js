@@ -54,12 +54,12 @@ export class Deck {
 }
 
 export class Player {
-  constructor(id, name, socketId) {
+  constructor(id, name, socketId, chips = 1000000) {
     this.id = id;
     this.name = name;
     this.socketId = socketId;
     this.cards = [];
-    this.chips = 1000000;
+    this.chips = chips;
     this.currentBet = 0;
     this.totalBet = 0;
     this.isActive = true;
