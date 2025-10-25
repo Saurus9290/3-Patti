@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { io } from "socket.io-client";
 
-const SOCKET_URL = "https://subunequal-bodger-janey.ngrok-free.dev";
-
+// const SOCKET_URL = "https://subunequal-bodger-janey.ngrok-free.dev";
+const SOCKET_URL = "http://localhost:3001";
 export function useSocket() {
   const [socket, setSocket] = useState(null);
   const [connected, setConnected] = useState(false);
