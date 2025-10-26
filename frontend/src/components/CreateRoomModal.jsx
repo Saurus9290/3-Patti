@@ -13,7 +13,7 @@ export default function CreateRoomModal({ isOpen, onClose, onSuccess, socket }) 
   const { account } = useWallet();
   const { address: walletAddress } = useAccount();
   const { createRoom, approveTokens, gameContract, tokenContract, contractAddresses } = useContracts();
-  
+
   // Get token balance
   const { data: balance } = useReadContract({
     address: addresses.baseSepolia?.TeenPattiToken,
@@ -24,7 +24,7 @@ export default function CreateRoomModal({ isOpen, onClose, onSuccess, socket }) 
       enabled: !!walletAddress,
     },
   });
-  
+
   const [buyIn, setBuyIn] = useState('1000');
   const [maxPlayers, setMaxPlayers] = useState('4');
   const [loading, setLoading] = useState(false);
@@ -65,7 +65,7 @@ export default function CreateRoomModal({ isOpen, onClose, onSuccess, socket }) 
       // Step 1: Approve tokens
       setStep('approving');
       console.log('Approving tokens...');
-      
+
       const approveResult = await approveTokens(
         contractAddresses.TeenPattiGame,
         buyInAmount
@@ -81,7 +81,7 @@ export default function CreateRoomModal({ isOpen, onClose, onSuccess, socket }) 
       setStep('creating');
       setMessage('Tokens approved! Creating room...');
       console.log('Creating room on blockchain...');
-      
+
       const createResult = await createRoom(buyInAmount, players);
 
       if (!createResult.success) {
@@ -89,22 +89,24 @@ export default function CreateRoomModal({ isOpen, onClose, onSuccess, socket }) 
       }
 
       console.log('Room created on blockchain:', createResult);
-      
+
       // Extract roomId from blockchain event
       const blockchainRoomId = createResult.roomId;
-      
+
       // Step 3: Notify backend via Socket.IO
       if (socket) {
         // Convert balance to number (in tokens, not wei)
         const tokenBalance = balance ? parseFloat(ethers.formatEther(balance)) : 0;
-        
+
         socket.emit('createRoomWithBlockchain', {
           blockchainRoomId: blockchainRoomId.toString(),
           buyIn: buyIn,
           maxPlayers: players,
           creator: account,
           txHash: createResult.txHash,
-          tokenBalance: tokenBalance
+          tokenBalance: tokenBalance,
+          // Provide numeric buy-in in tokens so backend initializes off-chain chips correctly
+          buyInTokens: Number(buyIn)
         });
 
         // Wait for backend confirmation
@@ -130,14 +132,14 @@ export default function CreateRoomModal({ isOpen, onClose, onSuccess, socket }) 
       console.error('Error creating room:', err);
       setLoading(false);
       setStep('input');
-      
+
       let errorMessage = err.message;
       if (err.message.includes('user rejected')) {
         errorMessage = 'Transaction rejected by user';
       } else if (err.message.includes('insufficient funds')) {
         errorMessage = 'Insufficient token balance';
       }
-      
+
       setError(errorMessage);
     }
   }

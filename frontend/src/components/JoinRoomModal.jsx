@@ -13,7 +13,7 @@ export default function JoinRoomModal({ isOpen, onClose, onSuccess, socket, room
   const { account } = useWallet();
   const { address: walletAddress } = useAccount();
   const { joinRoom, approveTokens, getRoomDetails, contractAddresses } = useContracts();
-  
+
   // Get token balance
   const { data: balance } = useReadContract({
     address: addresses.baseSepolia?.TeenPattiToken,
@@ -24,7 +24,7 @@ export default function JoinRoomModal({ isOpen, onClose, onSuccess, socket, room
       enabled: !!walletAddress,
     },
   });
-  
+
   const [blockchainRoomId, setBlockchainRoomId] = useState('');
   const [roomDetails, setRoomDetails] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -49,10 +49,10 @@ export default function JoinRoomModal({ isOpen, onClose, onSuccess, socket, room
   async function fetchRoomDetails() {
     setLoadingDetails(true);
     setError('');
-    
+
     try {
       const details = await getRoomDetails(blockchainRoomId);
-      
+
       if (!details) {
         setError('Room not found on blockchain');
         setRoomDetails(null);
@@ -102,7 +102,7 @@ export default function JoinRoomModal({ isOpen, onClose, onSuccess, socket, room
       // Step 1: Approve tokens
       setStep('approving');
       console.log('Approving tokens...');
-      
+
       const approveResult = await approveTokens(
         contractAddresses.TeenPattiGame,
         buyInAmount
@@ -117,7 +117,7 @@ export default function JoinRoomModal({ isOpen, onClose, onSuccess, socket, room
       // Step 2: Join room on blockchain
       setStep('joining');
       console.log('Joining room on blockchain...');
-      
+
       const joinResult = await joinRoom(blockchainRoomId);
 
       if (!joinResult.success) {
@@ -125,17 +125,19 @@ export default function JoinRoomModal({ isOpen, onClose, onSuccess, socket, room
       }
 
       console.log('Joined room on blockchain:', joinResult);
-      
+
       // Step 3: Notify backend via Socket.IO
       if (socket) {
         // Convert balance to number (in tokens, not wei)
         const tokenBalance = balance ? parseFloat(ethers.formatEther(balance)) : 0;
-        
+
         socket.emit('joinRoomWithBlockchain', {
           blockchainRoomId: blockchainRoomId,
           player: account,
           txHash: joinResult.txHash,
-          tokenBalance: tokenBalance
+          tokenBalance: tokenBalance,
+          // Use on-chain room buy-in (in token units) as starting chips for off-chain game
+          buyInTokens: Number(ethers.formatEther(roomDetails.buyIn))
         });
 
         // Wait for backend confirmation
@@ -161,7 +163,7 @@ export default function JoinRoomModal({ isOpen, onClose, onSuccess, socket, room
       console.error('Error joining room:', err);
       setLoading(false);
       setStep('input');
-      
+
       let errorMessage = err.message;
       if (err.message.includes('user rejected')) {
         errorMessage = 'Transaction rejected by user';
@@ -172,7 +174,7 @@ export default function JoinRoomModal({ isOpen, onClose, onSuccess, socket, room
       } else if (err.message.includes('Room is full')) {
         errorMessage = 'Room is full';
       }
-      
+
       setError(errorMessage);
     }
   }
