@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useWallet } from '../hooks/useWallet';
+import Button from './Button';
 
 const SUPPORTED_NETWORKS = {
   84532: {
@@ -85,13 +86,14 @@ export function NetworkSwitcher() {
             <p className="text-sm">Please switch to Base Sepolia network to use this app</p>
           </div>
         </div>
-        <button
+        <Button
           onClick={handleSwitchNetwork}
           disabled={isSwitching}
-          className="bg-black text-yellow-500 px-6 py-2 rounded-lg font-semibold hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          variant="outline"
+          className="bg-black text-yellow-500 hover:bg-gray-800"
         >
           {isSwitching ? 'Switching...' : 'Switch Network'}
-        </button>
+        </Button>
       </div>
     </div>
   );

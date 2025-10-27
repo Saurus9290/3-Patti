@@ -78,12 +78,14 @@ export default function BuyTokensModal({ isOpen, onClose, onSuccess }) {
             </div>
             <h2 className="text-xl font-bold text-white">Buy TPT Tokens</h2>
           </div>
-          <button
+          <Button
             onClick={onClose}
-            className="text-gray-400 hover:text-white transition-colors"
+            variant="ghost"
+            size="icon"
+            className="text-gray-400 hover:text-white transition-colors h-8 w-8"
           >
             <X className="w-6 h-6" />
-          </button>
+          </Button>
         </div>
 
         {/* Content */}

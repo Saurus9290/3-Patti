@@ -379,7 +379,7 @@ export default function GameRoom({ socket }) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-red-900 via-red-800 to-orange-900 p-4">
+    <div className="min-h-screen bg-[url('/background.jpg')] bg-cover bg-center p-4">
       {/* Header */}
       <div className="max-w-7xl mx-auto mb-4">
         <div className="flex items-center justify-between bg-black/30 backdrop-blur-sm rounded-lg p-4">

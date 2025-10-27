@@ -194,13 +194,15 @@ export default function JoinRoomModal({ isOpen, onClose, onSuccess, socket, room
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-700">
           <h2 className="text-2xl font-bold text-white">Join Game Room</h2>
-          <button
+          <Button
             onClick={handleClose}
             disabled={loading}
-            className="text-gray-400 hover:text-white transition-colors disabled:opacity-50"
+            variant="ghost"
+            size="icon"
+            className="text-gray-400 hover:text-white transition-colors disabled:opacity-50 h-8 w-8"
           >
             <X className="w-6 h-6" />
-          </button>
+          </Button>
         </div>
 
         {/* Content */}

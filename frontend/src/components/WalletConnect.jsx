@@ -68,18 +68,19 @@ export default function WalletConnect() {
             <div className="p-2">
               <div className="text-xs text-gray-400 px-3 py-2">Select Wallet</div>
               {connectors.map((connector) => (
-                <button
+                <Button
                   key={connector.id}
                   onClick={() => {
                     connect({ connector });
                     setShowConnectors(false);
                   }}
                   disabled={isPending}
-                  className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-700 text-white transition-colors disabled:opacity-50 flex items-center gap-2"
+                  variant="ghost"
+                  className="w-full justify-start px-3 py-2 rounded-lg hover:bg-gray-700 text-white transition-colors disabled:opacity-50 flex items-center gap-2"
                 >
                   <Wallet className="w-4 h-4" />
                   {connector.name}
-                </button>
+                </Button>
               ))}
             </div>
           </div>
