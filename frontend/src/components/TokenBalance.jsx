@@ -5,6 +5,7 @@ import { formatChips } from '@/lib/utils';
 import { ethers } from 'ethers';
 import TokenABI from '@/contracts/TeenPattiToken.json';
 import addresses from '@/contracts/addresses.json';
+import Button from './Button';
 
 const NETWORK_NAMES = {
   84532: 'Base Sepolia',
@@ -51,13 +52,15 @@ export default function TokenBalance() {
             </div>
           </div>
         </div>
-        <button
+        <Button
           onClick={() => refetch()}
           disabled={isLoading}
-          className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+          variant="ghost"
+          size="icon"
+          className="p-2 hover:bg-white/10 rounded-lg transition-colors h-8 w-8"
         >
           <RefreshCw className={`w-4 h-4 text-gray-300 ${isLoading ? 'animate-spin' : ''}`} />
-        </button>
+        </Button>
       </div>
     </div>
   );
