@@ -32,21 +32,13 @@ export default function TokenBalance() {
   const formattedBalance = balance ? ethers.formatEther(balance) : '0';
 
   return (
-    <div className="bg-gradient-to-r from-yellow-600/20 to-orange-600/20 backdrop-blur-sm rounded-lg px-4 py-3 border border-yellow-600/30">
+    <div className="bg-gradient-to-r from-yellow-600/20 to-orange-600/20 backdrop-blur-sm rounded-lg px-2 py-1 border border-yellow-600/30">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Coins className="w-5 h-5 text-yellow-400" />
           <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-300">TPT Balance</span>
-              {chainId && (
-                <span className="text-xs px-2 py-0.5 bg-blue-500/20 text-blue-400 rounded-full border border-blue-500/30">
-                  {NETWORK_NAMES[chainId] || `Chain ${chainId}`}
-                </span>
-              )}
-            </div>
-            <div className="text-lg font-bold text-yellow-400">
-              {formatChips(Math.floor(parseFloat(formattedBalance)))}
+            <div className="text-sm font-bold text-yellow-400">
+              {formatChips(Math.floor(parseFloat(formattedBalance)))} TPT
             </div>
           </div>
         </div>
