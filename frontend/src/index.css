@@ -64,6 +64,7 @@
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
+  transform: perspective(800px) rotateX(30deg);
 }
 
 .card {

@@ -19,14 +19,14 @@ export default function WalletConnect() {
   if (isConnected && address) {
     return (
       <div className="flex items-center gap-3">
-        {balance && (
+        {/* {balance && (
           <div className="bg-white/10 backdrop-blur-sm rounded-lg px-4 py-2">
             <div className="text-xs text-gray-300">Balance</div>
             <div className="text-white font-semibold">
               {parseFloat(balance).toFixed(6)} ETH
             </div>
           </div>
-        )}
+        )} */}
         <div className="bg-white/10 backdrop-blur-sm rounded-lg px-4 py-2">
           <div className="text-xs text-gray-300">Wallet</div>
           <div className="text-white font-semibold font-mono">
