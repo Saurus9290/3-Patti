@@ -63,13 +63,13 @@ export default function Home({ socket }) {
           <div className="text-center mb-12">
             <div className="relative inline-block mb-6">
               {/* Decorative elements */}
-              <div className="absolute -top-8 -left-8 text-yellow-400 animate-bounce" style={{ animationDelay: '0s' }}>
+              {/* <div className="absolute -top-8 -left-8 text-yellow-400 animate-bounce" style={{ animationDelay: '0s' }}>
                 <Sparkles className="w-8 h-8" />
               </div>
               <div className="absolute -top-8 -right-8 text-yellow-400 animate-bounce" style={{ animationDelay: '0.5s' }}>
                 <Sparkles className="w-8 h-8" />
               </div>
-              
+               */}
               {/* Main Title */}
               <div className="flex items-center justify-center gap-4 mb-2">
                 {/* <Crown className="w-16 h-16 text-yellow-400 drop-shadow-[0_0_15px_rgba(250,204,21,0.5)]" /> */}

@@ -1,4 +1,3 @@
-import React from 'react';
 import { Coins, RefreshCw } from 'lucide-react';
 import { useAccount, useReadContract } from 'wagmi';
 import { formatChips } from '@/lib/utils';
@@ -15,7 +14,6 @@ const NETWORK_NAMES = {
 export default function TokenBalance() {
   const { address: account, isConnected, chainId } = useAccount();
 
-  // Use wagmi's useReadContract for token balance
   const { data: balance, refetch, isLoading } = useReadContract({
     address: addresses.baseSepolia?.TeenPattiToken,
     abi: TokenABI.abi,
@@ -23,7 +21,7 @@ export default function TokenBalance() {
     args: account ? [account] : undefined,
     query: {
       enabled: !!account && isConnected,
-      refetchInterval: 30000, // Refetch every 30 seconds
+      refetchInterval: 5000,
     },
   });
 
