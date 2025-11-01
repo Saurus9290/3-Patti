@@ -1,4 +1,4 @@
-# Teen Patti - Online Multiplayer Card Game
+# Teen Patti - Indian Poker 
 
 A modern, real-time multiplayer Teen Patti (Indian Poker) game built with React, Node.js, and WebSocket technology.
 
